@@ -123,6 +123,25 @@
 <wire x1="25.4" y1="0" x2="25.4" y2="25.4" width="0" layer="20"/>
 <wire x1="25.4" y1="25.4" x2="0" y2="25.4" width="0" layer="20"/>
 <wire x1="0" y1="25.4" x2="0" y2="0" width="0" layer="20"/>
+<text x="8.636" y="4.572" size="0.4064" layer="21">VDD</text>
+<text x="10.922" y="5.334" size="0.4064" layer="21">CLK</text>
+<text x="10.922" y="4.572" size="0.4064" layer="21">OUT</text>
+<text x="16.002" y="4.572" size="0.4064" layer="21">STST</text>
+<text x="18.542" y="4.572" size="0.4064" layer="21">OSC1</text>
+<text x="20.828" y="4.572" size="0.4064" layer="21">OSC2</text>
+<text x="13.462" y="4.572" size="0.4064" layer="21">DGND</text>
+<text x="3.048" y="5.334" size="0.4064" layer="21">DATA</text>
+<text x="5.588" y="5.334" size="0.4064" layer="21">DATA</text>
+<text x="3.556" y="4.572" size="0.4064" layer="21">IN</text>
+<text x="5.842" y="4.572" size="0.4064" layer="21">OUT</text>
+<text x="20.828" y="20.32" size="0.4064" layer="21">APGND</text>
+<text x="18.288" y="20.32" size="0.4064" layer="21">TX_OUT</text>
+<text x="15.748" y="20.32" size="0.4064" layer="21">VDDAP</text>
+<text x="13.462" y="20.32" size="0.4064" layer="21">AGND</text>
+<text x="10.922" y="20.32" size="0.4064" layer="21">VDDA</text>
+<text x="8.382" y="20.32" size="0.4064" layer="21">RX_IN</text>
+<text x="6.096" y="20.32" size="0.4064" layer="21">PD</text>
+<text x="3.302" y="20.32" size="0.4064" layer="21">TST1</text>
 </plain>
 <libraries>
 <library name="Power_Modem">
