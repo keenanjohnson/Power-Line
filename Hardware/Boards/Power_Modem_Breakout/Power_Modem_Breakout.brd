@@ -145,8 +145,6 @@
 <text x="1.778" y="5.842" size="1.016" layer="21" rot="R90">Power Line Modem</text>
 <text x="3.556" y="9.652" size="1.016" layer="21" rot="R90">Breakout</text>
 <text x="24.4856" y="21.4376" size="0.8128" layer="21" rot="R90">V1.0</text>
-<text x="23.9014" y="1.8669" size="0.8128" layer="21" font="vector" rot="R90">Keenan</text>
-<text x="24.8793" y="1.8034" size="0.8128" layer="21" font="vector" rot="R90">Johnson</text>
 <rectangle x1="23.9395" y1="14.0335" x2="24.8285" y2="14.1605" layer="21" rot="R90"/>
 <rectangle x1="23.6855" y1="14.1605" x2="24.8285" y2="14.2875" layer="21" rot="R90"/>
 <rectangle x1="23.6855" y1="11.2395" x2="24.5745" y2="11.3665" layer="21" rot="R90"/>
@@ -260,6 +258,7 @@
 <rectangle x1="18.3515" y1="12.5095" x2="18.7325" y2="12.6365" layer="21" rot="R90"/>
 <rectangle x1="18.4785" y1="12.8905" x2="18.6055" y2="13.0175" layer="21" rot="R90"/>
 <rectangle x1="18.0975" y1="12.6365" x2="18.7325" y2="12.7635" layer="21" rot="R90"/>
+<text x="24.2824" y="1.0668" size="0.8128" layer="20" font="vector" ratio="2" rot="R90">K. Johnson</text>
 </plain>
 <libraries>
 <library name="Power_Modem">
