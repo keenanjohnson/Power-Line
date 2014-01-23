@@ -258,7 +258,7 @@
 <rectangle x1="18.3515" y1="12.5095" x2="18.7325" y2="12.6365" layer="21" rot="R90"/>
 <rectangle x1="18.4785" y1="12.8905" x2="18.6055" y2="13.0175" layer="21" rot="R90"/>
 <rectangle x1="18.0975" y1="12.6365" x2="18.7325" y2="12.7635" layer="21" rot="R90"/>
-<text x="24.2824" y="1.0668" size="0.8128" layer="20" font="vector" ratio="2" rot="R90">K. Johnson</text>
+<text x="24.2824" y="1.0668" size="0.8128" layer="21" font="vector" ratio="2" rot="R90">K. Johnson</text>
 </plain>
 <libraries>
 <library name="Power_Modem">
