@@ -1,7 +1,14 @@
 void setup()
-{
-  // start serial port at 9600 bps:
-  Serial.begin(600);
+{ 
+  
+  pinMode(3, OUTPUT);
+    // start serial port at 9600 bps:
+    
+    digitalWrite(3, HIGH); 
+    
+    delay(1000);
+ Serial.begin(600);
+ 
 }
 
 void loop()
@@ -12,5 +19,5 @@ void loop()
   if (Serial.available()) {
     inByte = Serial.read();
     Serial.println(inByte);   
-  }
+ }
 }
