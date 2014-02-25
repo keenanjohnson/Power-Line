@@ -35,4 +35,7 @@
 *.l##
 
 # Ignore eagle project files
-*.epf
+*.ep
+
+# Ignore OS X junk
+*.DS_Store
