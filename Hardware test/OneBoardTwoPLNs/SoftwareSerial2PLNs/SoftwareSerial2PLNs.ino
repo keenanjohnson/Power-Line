@@ -11,6 +11,7 @@ void setup()
   pinMode(RX_DATA_IN_PIN, OUTPUT);
   pinMode(TX_DATA_OUT_PIN, INPUT);
   pinMode(SERIAL_TX_PIN, OUTPUT);
+  pinMode(13, OUTPUT);
 
   // remove both PLNs from dummy state
   digitalWrite(SERIAL_TX_PIN, HIGH);
@@ -24,6 +25,7 @@ void setup()
 void loop() // run over and over
 {
   char inByte;
+  const char sendByte = 0xFF;
 
   if(Serial.available()) {
     inByte = Serial.read();
@@ -31,9 +33,10 @@ void loop() // run over and over
     Serial.println("Received byte: ");
     Serial.println(inByte);
   } else {
-    Serial.println("Sending byte: ");
-    Serial.write(send_string);
-    Serial.write("\n");
+//    Serial.println("Sending byte: ");
+    Serial.write(sendByte);
+//    Serial.println("\n");
+    digitalWrite(13, LOW);
   }
 
   delay(1000);
