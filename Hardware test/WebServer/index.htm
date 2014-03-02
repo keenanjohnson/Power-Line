@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Arduino SD Card Web Page using Ajax with XML</title>
+        <script>
+        function GetArduinoInputs()
+        {
+            nocache = "&nocache=" + Math.random() * 1000000;
+            var request = new XMLHttpRequest();
+            request.onreadystatechange = function()
+            {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        if (this.responseXML != null) {
+                            // extract XML data from XML file (containing switch states and analog value)
+                            document.getElementById("input1").innerHTML =
+                                this.responseXML.getElementsByTagName('button1')[0].childNodes[0].nodeValue;
+                            document.getElementById("input2").innerHTML =
+                                this.responseXML.getElementsByTagName('button2')[0].childNodes[0].nodeValue;
+                            document.getElementById("input3").innerHTML =
+                                this.responseXML.getElementsByTagName('analog1')[0].childNodes[0].nodeValue;
+								
+                            document.getElementById("input_app").innerHTML =
+                                this.responseXML.getElementsByTagName('size')[0].childNodes[0].nodeValue;
+                        }
+                    }
+                }
+            }
+            request.open("GET", "ajax_inputs" + nocache, true);
+            request.send(null);
+            setTimeout('GetArduinoInputs()', 1000);
+			
+			// Dynamic additions to elements
+		    //Create an input type dynamically.
+		    // var element = document.createElement("input"); 
+		    // //Assign different attributes to the element.
+		    // element.setAttribute("type", "button");
+		    // element.setAttribute("value", "button");
+		    // element.setAttribute("name", "button");
+		    // var foo = document.getElementById("input_app");
+		    // //Append the element in page (in span).
+		    // foo.appendChild(element);
+        }
+    </script>
+    </head>
+    <body onload="GetArduinoInputs()">
+        <h1>Arduino Inputs from SD Card Web Page using Ajax with XML</h1>
+        <p>Button 1 (pin 7): <span id="input1">...</span></p>
+        <p>Button 2 (pin 8): <span id="input2">...</span></p>
+        <p>Analog (A2): <span id="input3">...</span></p>
+		<p><span id="input_app"></span></p>
+    </body>
+</html>
