@@ -159,27 +159,38 @@ void XML_response(EthernetClient cl)
     
     cl.print("<?xml version = \"1.0\" ?>");
     cl.print("<inputs>");
-
-    cl.print("<size>");
-    cl.print(random(300));
-    cl.print("</size>");
-
-    cl.print("<button1>");
+    // light count
+    cl.print("<count>");
+    cl.print(3);
+    cl.print("</count>");
+    // button 1, pin 7
+    cl.print("<light1>");
     if (digitalRead(7)) {
         cl.print("ON");
     }
     else {
         cl.print("OFF");
     }
-    cl.print("</button1>");
-    cl.print("<button2>");
+    cl.print("</light1>");
+    // button 2, pin 8
+    cl.print("<light2>");
     if (digitalRead(8)) {
         cl.print("ON");
     }
     else {
         cl.print("OFF");
     }
-    cl.print("</button2>");
+    cl.print("</light2>");
+    // button 3, pin 6
+    cl.print("<light3>");
+    if (digitalRead(6)) {
+        cl.print("ON");
+    }
+    else {
+        cl.print("OFF");
+    }
+    cl.print("</light3>");
+    
     // read analog pin A2
     analog_val = analogRead(2);
     cl.print("<analog1>");
