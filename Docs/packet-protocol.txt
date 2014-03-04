@@ -1,0 +1,39 @@
+PACKET-LEVEL PROTOCOL
+DRAFT v1, 4 March 2014
+
+The application-layer protocol for communication between device nodes is designed to maximize flexibility while imposing the least possible overhead on simple communications. It is designed to run encapsulated inside a transport layer which manages medium access control, multiplexing, and bit order within a byte. So that packets can be routed in a broadcast, multicast, or or unicast fashion without causing confusion, each packet identifies its intended recipient.
+
+At a low level, each packet is encoded as a sequence of 8-bit bytes. A packet's structure is composed of two fields: `recipient` and `contents`, with `recipient` being encoded first:
+
+[ recipient ][ message ]
+
+Within each field, a length-prefixing scheme is used for payload flexibility. The first byte of the field (the `size` byte) specifies the size of the data to follow as computed by the expression `2**size`. This allows a vast range of payload sizes to be specified in a single byte.
+
+[ [size][...] ][ [size][...] ]
+
+Following the `size` byte, `extraneous size` bytes of length determined by the value of the `size` field are encoded. The count of these bytes is equal to `floor((size+6)/8)`, as follows:
+
+`size` | bytes of `extraneous size`
+  0    |   0
+  1    |   0
+  2    |   1
+  3    |   1
+  4    |   1
+  5    |   1
+  6    |   1
+  7    |   1
+  8    |   1
+  9    |   1
+  10   |   2
+  11   |   2
+  12   |   2
+  13   |   2
+  14   |   2
+  15   |   2
+  16   |   2
+  17   |   2
+  18   |   3
+
+The `extraneous size` bytes are followed by `content` bytes. The count of `content` bytes is equal to exactly `2**size`, but the last `extraneous size` of them are discarded before any further processing steps are taken. This allows for simple clients to ignore packets with fields of a size larger than they care to process without having to store their `extraneous size` value. Following this discarding step, a `content` byte stream of known length is left. This is the content of the field.
+
+In summary, a packet consists of one field called the `recipient` followed by one field called the `message`. Endpoints determine whether to look at a packet's `message` based on analysis of the `recipient`--the simplest scheme is just an equality comparison against a stored identifier. They then handle the `message` using logic which is not specified at the protocol level, which may consist of external actions, sending of protocol messages, or other operations.
