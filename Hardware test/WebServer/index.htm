@@ -43,10 +43,15 @@
             request.send(null);
             setTimeout('GetArduinoInputs()', 1000);
         }
+        function testFunc()
+        {
+            console.log('Testing');
+        }
     </script>
     </head>
     <body onload="GetArduinoInputs()">
         <h1>Lights and Groups</h1>
 		<p><span id="input_app">Updating...</span></p>
+        <button type = "button" onclick="testFunc()">Test Button</button>
     </body>
 </html>
