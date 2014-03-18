@@ -30,13 +30,13 @@ void loop() // run over and over
   if(Serial.available()) {
     inByte = Serial.read();
 
-    Serial.println("Received byte: ");
-    Serial.println(inByte);
-  } else {
-//    Serial.println("Sending byte: ");
-    Serial.write(sendByte);
-//    Serial.println("\n");
+//    Serial.println("Received byte: ");
+//    Serial.println(inByte);
+
     digitalWrite(13, LOW);
+  } else {
+    Serial.write(sendByte);
+    digitalWrite(13, HIGH);
   }
 
   delay(1000);
