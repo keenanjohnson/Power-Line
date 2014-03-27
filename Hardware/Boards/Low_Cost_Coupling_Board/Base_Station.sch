@@ -17304,6 +17304,8 @@ Standard 3-pin 0.1" header. Use with straight break away headers (SKU : PRT-0011
 <wire x1="48.26" y1="73.66" x2="48.26" y2="78.74" width="0.1524" layer="91"/>
 <pinref part="C1" gate="G$1" pin="1"/>
 <wire x1="45.72" y1="78.74" x2="48.26" y2="78.74" width="0.1524" layer="91"/>
+<pinref part="C2" gate="G$1" pin="-"/>
+<junction x="48.26" y="78.74"/>
 </segment>
 </net>
 <net name="N$4" class="0">
@@ -17320,6 +17322,9 @@ Standard 3-pin 0.1" header. Use with straight break away headers (SKU : PRT-0011
 <pinref part="L2" gate="G$1" pin="1"/>
 <pinref part="L1" gate="G$1" pin="1"/>
 <wire x1="93.98" y1="76.2" x2="93.98" y2="78.74" width="0.1524" layer="91"/>
+<junction x="78.74" y="78.74"/>
+<junction x="63.5" y="78.74"/>
+<junction x="93.98" y="78.74"/>
 </segment>
 </net>
 <net name="N$5" class="0">
@@ -17334,6 +17339,7 @@ Standard 3-pin 0.1" header. Use with straight break away headers (SKU : PRT-0011
 <wire x1="78.74" y1="63.5" x2="78.74" y2="58.42" width="0.1524" layer="91"/>
 <wire x1="78.74" y1="58.42" x2="78.74" y2="53.34" width="0.1524" layer="91"/>
 <pinref part="R1" gate="G$1" pin="2"/>
+<junction x="78.74" y="58.42"/>
 </segment>
 </net>
 <net name="N$1" class="0">
@@ -17445,6 +17451,9 @@ Standard 3-pin 0.1" header. Use with straight break away headers (SKU : PRT-0011
 </nets>
 </sheet>
 </sheets>
+<errors>
+<approved hash="113,1,-36.2373,80.2047,JP1,,,,,"/>
+</errors>
 </schematic>
 </drawing>
 </eagle>
