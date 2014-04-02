@@ -8,7 +8,7 @@
 static uint8_t mac[6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };;
 
 // CHANGE THIS TO MATCH YOUR HOST NETWORK
-static uint8_t ip[4] = { 192, 168, 1, 22 }; // area 51!
+static uint8_t ip[4] = { 192, 168, 5, 2 }; // area 51!
 
 /* all URLs on this server will start with /rgb because of how we
  * define the PREFIX value.  We also will listen on port 80, the

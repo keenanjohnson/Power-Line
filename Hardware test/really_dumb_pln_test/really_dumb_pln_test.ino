@@ -25,7 +25,7 @@ void loop() // run over and over
   {
      digitalWrite(4, LOW);  
   }
-  delay(20);
+  delay(200);
   int State = digitalRead(2);
   Serial.println(State);
 }
