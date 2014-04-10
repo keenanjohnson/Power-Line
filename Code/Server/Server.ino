@@ -74,7 +74,7 @@ FUNCTION PROTOTYPES
 ------------------------------------------------------------------------*/
 void print_local_ip_address();
 void save_local_ip_address();
-void send_cmd_to_clients( const int &id, const node_cmds &cmd, const byte &data, const EthernetClient &client );
+int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, EthernetClient* client );
 
 /*------------------------------------------------------------------------
 SETUP
@@ -138,10 +138,10 @@ void loop() {
       node_packet pack;
 
       if( count == 0 ) {
-        send_cmd_to_clients( 0x01, NODE_ON, 0x02, client );
+        send_cmd_to_client( 0x01, NODE_ON, 0x02, &client );
         count = 1;
       } else {
-        send_cmd_to_clients( 0x01, NODE_SAVE_ID, 0x02, client );
+        send_cmd_to_client( 0x01, NODE_SAVE_ID, 0x02, &client );
         count = 0;
       }
     }
@@ -171,7 +171,7 @@ void save_local_ip_address()
   }
 }
 
-void send_cmd_to_clients( const int &id, const node_cmds &cmd, const byte &data, const EthernetClient &client )
+int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, EthernetClient* client )
 {
   node_packet pack;
   pack.id = id;
@@ -181,5 +181,5 @@ void send_cmd_to_clients( const int &id, const node_cmds &cmd, const byte &data,
   Serial.write( "Sending cmd: " );
   Serial.println( node_cmds_string[ cmd ] );
   
-  server.write( (byte*)&pack, sizeof( pack ) );
+  return (*client).write( (byte*)&pack, sizeof( pack ) );
 }
