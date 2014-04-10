@@ -68,6 +68,7 @@ boolean IP_found = false;
 FUNCTION PROTOTYPES
 ------------------------------------------------------------------------*/
 void print_local_ip_address();
+void process_cmd_packet( const node_packet &pkt );
 
 /*------------------------------------------------------------------------
 SETUP
@@ -122,57 +123,54 @@ void loop() {
     IP_found = true;
     
     client.connect( UDP.remoteIP(), 11700);
+    
+    while( !client.connected() ) {
+      Serial.println("Waiting to connect...");
+    }
+    
+    // bring up connection
+    client.println("A");
+    
+    Serial.write("DATA SENT");
+    Serial.println();
   }
-  
+
   if( !client.connected() ) {
     IP_found = false;
   }
-  
+
   if( IP_found )
   {
     boolean data_read = false;
     node_packet packet;
-    int read_idx = 0;
 
-    while( client.available() ) {
-      if( client.available() == sizeof( node_packet ) ) {
+    while( !data_read ) {
+      if( client.available() >= sizeof( node_packet ) ) {
         Serial.print( "Node Packet detected!" );
         Serial.println();
         data_read = true;
         
-        while( client.available() ) {
-          ((byte*)&packet)[read_idx] = client.read();
-          read_idx++;
+        for( int i = 0; i < sizeof( node_packet ); i++ ) {
+          ((byte*)&packet)[i] = client.read();
         }
       }
 
-      // may want to flush data from buffer here
-//      if( client.read() ) {
-//        Serial.print( "WEIRD DATA" );
-//        client.flush();
-//      }
-      char c = client.read();
-      if( c != -1 ) {
-        Serial.print(c);
-      }
+      // TODO MR: may want to flush data from buffer here
     }
     
     if( data_read ) {
-      Serial.print(" CMD: ");
-      Serial.print( node_cmds_string[ packet.cmd ] );
+      Serial.print("ID: "); Serial.print( packet.id );
+      Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
+      Serial.print(" Data: "); Serial.print( packet.data, HEX );
       Serial.println();
+
+      process_cmd_packet( packet );
     }
-    
-    
-    client.println("Hello");
-    
-    Serial.write("DATA SENT");
-    Serial.println();
+
   } else {
     Serial.write("IP NOT FOUND");
     Serial.println();
   }
-  delay(500);
 }
 
 /*------------------------------------------------------------------------
@@ -187,4 +185,19 @@ void print_local_ip_address()
     Serial.print(".");
   }
   Serial.println();
+}
+
+void process_cmd_packet( const node_packet &pkt )
+{
+  switch( pkt.cmd ) {
+    case NODE_OFF:
+      break;
+    case NODE_ON:
+      break;
+    case NODE_SAVE_ID:
+      break;
+    default:
+      Serial.println("CMD NOT KNOWN");
+      break;
+  }
 }

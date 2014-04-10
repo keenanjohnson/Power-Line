@@ -69,6 +69,8 @@ byte IP_addr[4];
 unsigned int localPort = 8888;      // local port to listen on
 IPAddress ip(255, 255, 255, 255);
 
+EthernetClient old_client;
+
 /*------------------------------------------------------------------------
 FUNCTION PROTOTYPES
 ------------------------------------------------------------------------*/
@@ -120,8 +122,9 @@ void loop() {
       // clead out the input buffer:
       client.flush();
       Serial.println("We have a new client");
-      client.println("Hello, client!");
       alreadyConnected = true;
+      
+      send_cmd_to_client( 0x01, NODE_SAVE_ID, 0x01, &client );
     } 
     
     while(client.available() > 0) {
@@ -133,21 +136,24 @@ void loop() {
       Serial.write(thisChar);
     }
     
-    if( client.connected() ) {
-      static int count = 0;
-      node_packet pack;
-
-      if( count == 0 ) {
-        send_cmd_to_client( 0x01, NODE_ON, 0x02, &client );
-        count = 1;
-      } else {
-        send_cmd_to_client( 0x01, NODE_SAVE_ID, 0x02, &client );
-        count = 0;
-      }
-    }
+    old_client = client;
   }
   
-  delay(1000);
+  if( old_client && old_client.connected() ) {
+    static int count = 0;
+
+    if( count == 0 ) {
+      send_cmd_to_client( 0x01, NODE_ON, 0x02, &old_client );
+      count++;
+    } else if( count == 1 ) {
+      send_cmd_to_client( 0x01, NODE_SAVE_ID, 0x02, &old_client );
+      count++;
+    } else {
+      send_cmd_to_client( 0x01, NODE_OFF, 0x02, &old_client );
+      delay(100);
+      count = 0;
+    }
+  }
 }
 
 /*------------------------------------------------------------------------
@@ -173,13 +179,15 @@ void save_local_ip_address()
 
 int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, EthernetClient* client )
 {
-  node_packet pack;
-  pack.id = id;
-  pack.cmd = cmd;
-  pack.data = data;
+  node_packet packet;
+  packet.id = id;
+  packet.cmd = cmd;
+  packet.data = data;
+
+  Serial.print("ID: "); Serial.print( packet.id );
+  Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
+  Serial.print(" Data: "); Serial.print( packet.data, HEX );
+  Serial.println();
   
-  Serial.write( "Sending cmd: " );
-  Serial.println( node_cmds_string[ cmd ] );
-  
-  return (*client).write( (byte*)&pack, sizeof( pack ) );
+  return (*client).write( (byte*)&packet, sizeof( packet ) );
 }
