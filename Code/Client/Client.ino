@@ -124,6 +124,10 @@ void loop() {
     client.connect( UDP.remoteIP(), 11700);
   }
   
+  if( !client.connected() ) {
+    IP_found = false;
+  }
+  
   if( IP_found )
   {
     boolean data_read = false;
