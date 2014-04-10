@@ -25,6 +25,7 @@ typedef byte node_cmds; enum {
   NODE_OFF = 0,
   NODE_ON,
   NODE_SAVE_ID,
+  NODE_KEEP_ALIVE,
   // add new cmds here
   
   NODE_CMDS_CNT
@@ -34,7 +35,8 @@ const char* node_cmds_string[] =
 {
   "OFF",
   "ON",
-  "SAVE ID"
+  "SAVE ID",
+  "KEEP ALIVE",
 };
 STATIC_ASSERT( sizeof( node_cmds_string ) / sizeof( char* ) == NODE_CMDS_CNT, make_arrays_same_size );
 
@@ -84,24 +86,24 @@ SETUP
 void setup() {
  // Open serial communications and wait for port to open:
   Serial.begin(9600);
-  
+
   // start the Ethernet connection:
   while(Ethernet.begin(mac) == 0) {
     Serial.println("Failed to configure Ethernet using DHCP");
     // Wait a bit and try again
     delay(100);
   }
-  
+
   // Start listening on UDP port
   UDP.begin(localPort);
-  
+
   // start listening for clients
   server.begin();
 
   // print and save local IP address
   print_local_ip_address();
   save_local_ip_address();
-  
+
 }
 
 /*------------------------------------------------------------------------
@@ -116,17 +118,17 @@ void loop() {
 
   // wait for a new client:
   EthernetClient client = server.available();
-  
+
   if( client ) {
     if (!alreadyConnected) {
       // clead out the input buffer:
       client.flush();
       Serial.println("We have a new client");
       alreadyConnected = true;
-      
+
       send_cmd_to_client( 0x01, NODE_SAVE_ID, 0x01, &client );
     } 
-    
+
     while(client.available() > 0) {
       // read the bytes incoming from the client:
       char thisChar = client.read();
@@ -135,11 +137,11 @@ void loop() {
       // echo the bytes to the server as well:
       Serial.write(thisChar);
     }
-    
+
     old_client = client;
   }
-  
-  if( old_client && old_client.connected() ) {
+
+  if( old_client && old_client.connected() && send_cmd_to_client( 0x01, NODE_KEEP_ALIVE, 0x00, &old_client ) ) {
     static int count = 0;
 
     if( count == 0 ) {
@@ -153,6 +155,11 @@ void loop() {
       delay(100);
       count = 0;
     }
+  } else {
+    if( old_client ) {
+      old_client.stop();
+    }
+    alreadyConnected = false;
   }
 }
 
@@ -188,6 +195,6 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
   Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
   Serial.print(" Data: "); Serial.print( packet.data, HEX );
   Serial.println();
-  
+
   return (*client).write( (byte*)&packet, sizeof( packet ) );
 }

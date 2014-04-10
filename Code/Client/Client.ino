@@ -25,6 +25,7 @@ typedef byte node_cmds; enum {
   NODE_OFF = 0,
   NODE_ON,
   NODE_SAVE_ID,
+  NODE_KEEP_ALIVE,
   // add new cmds here
   
   NODE_CMDS_CNT
@@ -34,7 +35,8 @@ const char* node_cmds_string[] =
 {
   "OFF",
   "ON",
-  "SAVE ID"
+  "SAVE ID",
+  "KEEP ALIVE",
 };
 STATIC_ASSERT( sizeof( node_cmds_string ) / sizeof( char* ) == NODE_CMDS_CNT, make_arrays_same_size );
 
@@ -195,6 +197,8 @@ void process_cmd_packet( const node_packet &pkt )
     case NODE_ON:
       break;
     case NODE_SAVE_ID:
+      break;
+    case NODE_KEEP_ALIVE:
       break;
     default:
       Serial.println("CMD NOT KNOWN");
