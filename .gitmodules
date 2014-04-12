@@ -1,0 +1,3 @@
+[submodule "Code/Webduino"]
+	path = Code/Webduino
+	url = git@github.com:sirleech/Webduino.git
