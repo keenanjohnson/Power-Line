@@ -47,6 +47,8 @@ typedef struct __node_packet {
 } node_packet;
 //////////////////////////////////////////////////////////////////////////
 
+#define NODE_RELAY_PIN 5
+
 /*------------------------------------------------------------------------
 VARIABLES
 ------------------------------------------------------------------------*/
@@ -76,8 +78,11 @@ void process_cmd_packet( const node_packet &pkt );
 SETUP
 ------------------------------------------------------------------------*/
 void setup() {
- // Open serial communications and wait for port to open:
+  // Open serial communications and wait for port to open:
   Serial.begin(9600);
+  
+  // setup pins
+  pinMode(NODE_RELAY_PIN, OUTPUT);
   
   // start the Ethernet connection:
   while(Ethernet.begin(mac) == 0) {
@@ -193,8 +198,10 @@ void process_cmd_packet( const node_packet &pkt )
 {
   switch( pkt.cmd ) {
     case NODE_OFF:
+      digitalWrite(NODE_RELAY_PIN, LOW);
       break;
     case NODE_ON:
+      digitalWrite(NODE_RELAY_PIN, HIGH);
       break;
     case NODE_SAVE_ID:
       break;
