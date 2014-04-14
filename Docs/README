@@ -1,0 +1,10 @@
+SYSTEM INTEROPERATION GUIDE
+DRAFT v1, 9 April 2014
+
+The home automation system is designed to be extensible and interoperable with a minimum of difficulty for third-parties to customize and integrate the system as desired. This is achieved by using a single message format for all communication, on top of which a variety of task-oriented protocols can be used.
+
+The low-level message format is documented in detail in `packet-format.txt`.
+
+Each custom high-level protocol should be identified by the values of first bytes of the payloads of its packets. System integrators are with tasked with the responsibility of ensuring that multiple high-level components do not use ambiguous byte sequences for this purpose. To facilitate this task, the first byte of payloads involved in custom high-level protocols should not be 0x00, as this should 
+
+The high-level protocol used by the demonstration devices is intended to provide an example of centralized coordination and exchange of simple data payloads. It is documented in detail in `light-protocol.txt`.

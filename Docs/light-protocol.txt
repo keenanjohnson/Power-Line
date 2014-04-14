@@ -1,0 +1,6 @@
+LIGHT PROTOCOL
+DRAFT v1, 9 April 2014
+
+The packets sent in the light protocol start with an identifier byte of 0x01, followed by protocol-specific information.
+
+
