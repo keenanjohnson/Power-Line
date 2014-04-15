@@ -13,6 +13,8 @@
 #include <SPI.h>
 #include <Ethernet.h>
 
+
+
 /*------------------------------------------------------------------------
 CONSTANTS/TYPES
 ------------------------------------------------------------------------*/
@@ -26,17 +28,25 @@ typedef byte node_cmds; enum {
   NODE_ON,
   NODE_SAVE_ID,
   NODE_KEEP_ALIVE,
+  NODE_STATUS,
   // add new cmds here
   
   NODE_CMDS_CNT
 };
 
-const char* node_cmds_string[] =
-{
-  "OFF",
-  "ON",
-  "SAVE ID",
-  "KEEP ALIVE",
+prog_char string_0[] PROGMEM = "OFF";
+prog_char string_1[] PROGMEM = "ON";
+prog_char string_2[] PROGMEM = "SAVE ID";
+prog_char string_3[] PROGMEM = "KEEP ALIVE";
+prog_char string_4[] PROGMEM = "STATUS";
+
+PROGMEM const char *node_cmds_string[] =
+{   
+  string_0,
+  string_1,
+  string_2,
+  string_3,
+  string_4,
 };
 STATIC_ASSERT( sizeof( node_cmds_string ) / sizeof( char* ) == NODE_CMDS_CNT, make_arrays_same_size );
 
