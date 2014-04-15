@@ -13,7 +13,6 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
-#include "WebServer.h"
 
 /*------------------------------------------------------------------------
 CONSTANTS/TYPES
