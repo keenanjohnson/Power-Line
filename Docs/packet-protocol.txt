@@ -1,5 +1,5 @@
 PACKET-LEVEL PROTOCOL
-DRAFT v1, 4 March 2014
+DRAFT v2, 9 April 2014
 
 The application-layer protocol for communication between device nodes is designed to maximize flexibility while imposing the least possible overhead on simple communications. It is designed to run encapsulated inside a transport layer which manages medium access control, multiplexing, and bit order within a byte. So that packets can be routed in a broadcast, multicast, or or unicast fashion without causing confusion, each packet identifies its intended recipient.
 
