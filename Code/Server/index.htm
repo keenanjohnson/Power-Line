@@ -5,7 +5,6 @@
         <script>
         function GetArduinoInputs()
         {
-            nocache = "&nocache=" + Math.random() * 1000000;
             var request = new XMLHttpRequest();
             request.onreadystatechange = function()
             {
@@ -39,19 +38,34 @@
                     }
                 }
             }
-            request.open("GET", "ajax_inputs" + nocache, true);
+            request.open("GET", "Status", true);
             request.send(null);
             setTimeout('GetArduinoInputs()', 1000);
         }
-        function testFunc()
+
+        // Button On Command
+        function Button1On()
         {
-            console.log('Testing');
+            var request = new XMLHttpRequest();
+            request.open("POST", "", true);
+            request.send("ButtonOn");
         }
+
+        // Button off command
+        function Button1Off()
+        {
+            var request = new XMLHttpRequest();
+            request.open("POST", "", true);
+            request.send("ButtonOff");
+        }
+
     </script>
     </head>
     <body onload="GetArduinoInputs()">
-        <h1>Lights and Groups</h1>
+        <h1>Light Status</h1>
 		<p><span id="input_app">Updating...</span></p>
-        <button type = "button" onclick="testFunc()">Test Button</button>
+        <h1>Light Commands</h1>
+        <button type = "button" onclick="Button1On()">Light 1 On</button>
+        <button type = "button" onclick="Button1Off()">Light 1 Off</button>
     </body>
 </html>

@@ -101,7 +101,8 @@ FUNCTION PROTOTYPES
 void print_local_ip_address();
 void save_local_ip_address();
 int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, EthernetClient* client );
-void web_response(WebServer &server, WebServer::ConnectionType type, char *, bool);
+void web_response(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete);
+void update_status(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete);
 /*------------------------------------------------------------------------
 SETUP
 ------------------------------------------------------------------------*/
@@ -137,6 +138,8 @@ void setup() {
   /* setup our default command that will be run when the user accesses
    * the root page on the server */
   webserver.setDefaultCommand(&web_response);
+  
+  webserver.addCommand("Status", &update_status);
   
   /* start the webserver */
   webserver.begin();
@@ -259,16 +262,56 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
 /* commands are functions that get called by the webserver framework
  * they can read any posted data from client, and they output to the
  * server to send data back to the web browser. */
-void web_response(WebServer &server, WebServer::ConnectionType type, char *, bool)
+void web_response(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete)
 {
-  /* this line sends the standard "we're all OK" headers back to the
-     browser */
-  server.httpSuccess();
-
-  /* if we're handling a GET or POST, we can output our data here.
-     For a HEAD request, we just stop after outputting headers. */
-  if (type != WebServer::HEAD)
+  
+  // ////////////////////////////////////
+  // Handling POST requests from website
+  ///////////////////////////////////////
+  if ( type == WebServer::POST)
   {
+    Serial.println("Post received");
+    bool repeat;
+    char name[16], value[16];
+    
+      /* readPOSTparam returns false when there are no more parameters
+       * to read from the input.  We pass in buffers for it to store
+       * the name and value strings along with the length of those
+       * buffers. */
+      repeat = server.readPOSTparam(name, 16, value, 16);
+      
+      // Light ON
+      if ( strcmp(name, "ButtonOn") == 0)
+      {
+          // Turn light on
+          Serial.println("Light on Command");
+      }
+      //Light off
+      if ( strcmp(name, "ButtonOff") == 0)
+      {
+          // Turn light off
+          Serial.println("Light off Command");
+      }
+
+    
+    return;
+  }
+  
+  
+  // ////////////////////////////////////
+  // Handling GET for website page sending
+  ///////////////////////////////////////
+   /* for a GET or HEAD, send the standard "it's all OK headers" */
+  server.httpSuccess();
+  
+  if (type == WebServer::GET)
+  {
+    Serial.println(url_tail);
+    URLPARAM_RESULT rc;
+    char name[32];
+    char value[32];
+    
+    // Write HTML file out to client
     webFile = SD.open("index.htm");        // open web page file
     if (webFile) {
         while(webFile.available()) {
@@ -279,3 +322,23 @@ void web_response(WebServer &server, WebServer::ConnectionType type, char *, boo
   }
 }
 
+// Handles sending out LED status updates
+void update_status(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete)
+{
+  server.print("<?xml version = \"1.0\" ?>");
+    server.print("<inputs>");
+    // light count
+    server.print("<count>");
+    server.print(1);
+    server.print("</count>");
+    // button 1, pin 7
+    server.print("<light1>");
+    if (digitalRead(7)) {
+        server.print("ON");
+    }
+    else {
+        server.print("OFF");
+    }
+    server.print("</light1>");
+    server.print("</inputs>");
+}
