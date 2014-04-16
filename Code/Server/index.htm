@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Open Home Automation</title>
+        <script>
+        function GetArduinoInputs()
+        {
+            nocache = "&nocache=" + Math.random() * 1000000;
+            var request = new XMLHttpRequest();
+            request.onreadystatechange = function()
+            {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        if (this.responseXML != null) {
+                            // extract XML data from XML file (containing light states)
+							var count_var = this.responseXML.getElementsByTagName('count')[0].childNodes[0].nodeValue;
+							var string1 = "Light ";
+							var light_string = "light";
+							var xml_string = "";
+							
+                           document.getElementById("input_app").innerHTML = "";
+
+							for( var i = 1; i <= count_var; i++ ) {
+								var element = document.createElement("p");
+							    // Assign different attributes to the element.
+								// construct string
+								xml_string = "";
+								xml_string = xml_string.concat(light_string, i);
+								// set id
+								element.setAttribute("id", light_string.concat(i));
+							    var foo = document.getElementById("input_app");
+							    //Append the element in page (in span).
+							    foo.appendChild(element);
+								
+								document.getElementById(light_string.concat(i)).innerHTML = 
+									string1.concat(i, ": ", this.responseXML.getElementsByTagName(xml_string)[0].childNodes[0].nodeValue);
+							}
+                        }
+                    }
+                }
+            }
+            request.open("GET", "ajax_inputs" + nocache, true);
+            request.send(null);
+            setTimeout('GetArduinoInputs()', 1000);
+        }
+        function testFunc()
+        {
+            console.log('Testing');
+        }
+    </script>
+    </head>
+    <body onload="GetArduinoInputs()">
+        <h1>Lights and Groups</h1>
+		<p><span id="input_app">Updating...</span></p>
+        <button type = "button" onclick="testFunc()">Test Button</button>
+    </body>
+</html>
