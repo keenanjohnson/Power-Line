@@ -13,6 +13,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
+#include "WebServer.h"
 
 /*------------------------------------------------------------------------
 CONSTANTS/TYPES
@@ -63,8 +64,10 @@ VARIABLES
 
 File webFile; 
 
-// Web page server
-EthernetServer web_server(80);
+/* This creates an instance of the webserver.  By specifying a prefix
+ * of "", all pages will be at the root of the server. */
+#define PREFIX ""
+WebServer webserver(PREFIX, 80);
 
 // Enter a MAC address for your controller below.
 // Newer Ethernet shields have a MAC address printed on a sticker on the shield
@@ -103,37 +106,31 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
 void StrClear(char *str, char length);
 char StrContains(char *str, char *sfind);
 void XML_response(EthernetClient cl);
+void web_response(WebServer &server, WebServer::ConnectionType type, char *, bool);
 /*------------------------------------------------------------------------
 SETUP
 ------------------------------------------------------------------------*/
 void setup() {
-    
-  Serial.println("Server rebooting");
-  
-   // disable Ethernet chip
-    pinMode(10, OUTPUT);
-    digitalWrite(10, HIGH);
-    
-    Serial.begin(9600);       // for debugging
-    
-    // initialize SD card
-    Serial.println("Initializing SD card...");
-    if (!SD.begin(4)) {
-        Serial.println("ERROR - SD card initialization failed!");
-        return;    // init failed
-    }
-    Serial.println("SUCCESS - SD card initialized.");
-    // check for index.htm file
-    if (!SD.exists("index.htm")) {
-        Serial.println("ERROR - Can't find index.htm file!");
-        return;  // can't find index file
-    }
-    Serial.println("SUCCESS - Found index.htm file.");
-  
-  Serial.println("Server starting");
+  Serial.begin(9600);       // for debugging
 
-  // start the Ethernet connection:
- Ethernet.begin(mac, web_ip);
+  Serial.println("Server Starting");
+  
+  // disable Ethernet chip
+  pinMode(10, OUTPUT);
+  digitalWrite(10, HIGH);
+ 
+  // initialize SD card
+  Serial.println("Initializing SD card...");
+  if (!SD.begin(4)) {
+      Serial.println("ERROR - SD card initialization failed!");
+      return;    // init failed
+  }
+
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    // initialize the ethernet device not using DHCP:
+    Ethernet.begin(mac, web_ip);
+  }
 
   // Start listening on UDP port
   UDP.begin(localPort);
@@ -141,8 +138,12 @@ void setup() {
   // start listening for clients
   server.begin();
   
-  // Start HTTP server
-  web_server.begin(); 
+  /* setup our default command that will be run when the user accesses
+   * the root page on the server */
+  webserver.setDefaultCommand(&web_response);
+  
+  /* start the webserver */
+  webserver.begin();
 
   // print and save local IP address
   print_local_ip_address();
@@ -160,84 +161,21 @@ void loop() {
   // Web Server
   /////////////////////////
   
-   EthernetClient web_client = web_server.available();  // try to get client
+  char buff[64];
+  int len = 64;
 
-    if (web_client) {  // got client?
-        Serial.println("Get client");
-        boolean currentLineIsBlank = true;
-        while (web_client.connected()) {
-            if (web_client.available()) {   // client data available to read
-                char c = web_client.read(); // read 1 byte (character) from client
-                // buffer first part of HTTP request in HTTP_req array (string)
-                // leave last element in array as 0 to null terminate string (REQ_BUF_SZ - 1)
-                if (req_index < (REQ_BUF_SZ - 1)) {
-                    HTTP_req[req_index] = c;          // save HTTP request character
-                    req_index++;
-                }
-                // last line of client request is blank and ends with \n
-                // respond to client only after last line received
-                if (c == '\n' && currentLineIsBlank) {
-                    // send a standard http response header
-                    web_client.println("HTTP/1.1 200 OK");
-                    // remainder of header follows below, depending on if
-                    // web page or XML page is requested
-                    // Ajax request - send XML file
-                    if (StrContains(HTTP_req, "ajax_inputs")) {
-                        // send rest of HTTP header
-                        web_client.println("Content-Type: text/xml");
-                        web_client.println("Connection: keep-alive");
-                        web_client.println();
-                        // send XML file containing input states
-                        XML_response(web_client);
-                    }
-                    else {  // web page request
-                        // send rest of HTTP header
-                        web_client.println("Content-Type: text/html");
-                        web_client.println("Connection: keep-alive");
-                        web_client.println();
-                        // send web page
-                        webFile = SD.open("index.htm");        // open web page file
-                        if (webFile) {
-                            while(webFile.available()) {
-                                web_client.write(webFile.read()); // send web page to client
-                            }
-                            webFile.close();
-                        }
-                    }
-                    // display received HTTP request on serial port
-                    Serial.print(HTTP_req);
-                    // reset buffer index and all buffer elements to 0
-                    req_index = 0;
-                    StrClear(HTTP_req, REQ_BUF_SZ);
-                    break;
-                }
-                // every line of text received from the client ends with \r\n
-                if (c == '\n') {
-                    // last character on line of received text
-                    // starting new line with next character read
-                    currentLineIsBlank = true;
-                } 
-                else if (c != '\r') {
-                    // a text character was received from client
-                    currentLineIsBlank = false;
-                }
-            } // end if (client.available())
-        } // end while (client.connected())
-        delay(1);      // give the web browser time to receive the data
-        web_client.stop(); // close the connection
-        Serial.println("Conn closed");
-    } // end if (client)
-  
+  /* process incoming connections one at a time forever */
+  webserver.processConnection(buff, &len);
   
   ////////////////////////
   // Powerline Network
   ////////////////////////
   
+  
   // Broadcast IP address
   UDP.beginPacket( udp_ip, localPort );
   UDP.write( IP_addr, 4 );
   UDP.endPacket();
-  Serial.println("Sending IP address");
 
   // wait for a new client:
   EthernetClient client = server.available();
@@ -370,7 +308,7 @@ void XML_response(EthernetClient cl)
     cl.print("<inputs>");
     // light count
     cl.print("<count>");
-    cl.print(3);
+    cl.print(1);
     cl.print("</count>");
     // button 1, pin 7
     cl.print("<light1>");
@@ -406,5 +344,28 @@ void XML_response(EthernetClient cl)
     cl.print(analog_val);
     cl.print("</analog1>");
     cl.print("</inputs>");
+}
+
+/* commands are functions that get called by the webserver framework
+ * they can read any posted data from client, and they output to the
+ * server to send data back to the web browser. */
+void web_response(WebServer &server, WebServer::ConnectionType type, char *, bool)
+{
+  /* this line sends the standard "we're all OK" headers back to the
+     browser */
+  server.httpSuccess();
+
+  /* if we're handling a GET or POST, we can output our data here.
+     For a HEAD request, we just stop after outputting headers. */
+  if (type != WebServer::HEAD)
+  {
+    /* this defines some HTML text in read-only memory aka PROGMEM.
+     * This is needed to avoid having the string copied to our limited
+     * amount of RAM. */
+    P(helloMsg) = "<h1>Hello, World!</h1>";
+
+    /* this is a special form of print that outputs from PROGMEM */
+    server.printP(helloMsg);
+  }
 }
 
