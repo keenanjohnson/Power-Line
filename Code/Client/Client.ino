@@ -23,6 +23,8 @@ CONSTANTS/TYPES
 //////////////////////////////////////////////////////////////////////////
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
+#define PACKET_WAIT_TIMEOUT 50
+
 typedef byte node_cmds; enum {
   NODE_OFF = 0,
   NODE_ON,
@@ -34,19 +36,13 @@ typedef byte node_cmds; enum {
   NODE_CMDS_CNT
 };
 
-prog_char string_0[] PROGMEM = "OFF";
-prog_char string_1[] PROGMEM = "ON";
-prog_char string_2[] PROGMEM = "SAVE ID";
-prog_char string_3[] PROGMEM = "KEEP ALIVE";
-prog_char string_4[] PROGMEM = "STATUS";
-
-PROGMEM const char *node_cmds_string[] =
+const char *node_cmds_string[] =
 {   
-  string_0,
-  string_1,
-  string_2,
-  string_3,
-  string_4,
+  "OFF\0",
+  "ON\0",
+  "SAVE ID\0",
+  "KEEP ALIVE\0",
+  "STATUS\0",
 };
 STATIC_ASSERT( sizeof( node_cmds_string ) / sizeof( char* ) == NODE_CMDS_CNT, make_arrays_same_size );
 
@@ -78,11 +74,14 @@ unsigned int localPort = 8888;      // local port to listen on
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE]; //buffer to hold incoming packet,
 boolean IP_found = false;
 
+int node_id;
+
 /*------------------------------------------------------------------------
 FUNCTION PROTOTYPES
 ------------------------------------------------------------------------*/
 void print_local_ip_address();
 void process_cmd_packet( const node_packet &pkt );
+int send_cmd_to_server( const node_cmds &cmd, const byte &data, EthernetClient* client );
 
 /*------------------------------------------------------------------------
 SETUP
@@ -138,8 +137,10 @@ void loop() {
     Serial.println(packetBuffer);
     
     IP_found = true;
-    
-    client.connect( UDP.remoteIP(), 11700);
+
+    if( !client.connect( UDP.remoteIP(), 11700) ) {
+      Serial.println("Client cannot connect...");
+    }
     
     while( !client.connected() ) {
       Serial.println("Waiting to connect...");
@@ -152,21 +153,26 @@ void loop() {
     Serial.println();
   }
 
-  if( !client.connected() ) {
+  if( !client.connected() || !send_cmd_to_server( NODE_KEEP_ALIVE, 0x00, &client ) ) {
     IP_found = false;
+    client.flush();
+    client.stop();
   }
 
   if( IP_found )
   {
     boolean data_read = false;
+    int data_timeout = 0;
     node_packet packet;
 
-    while( !data_read ) {
+    while( !data_read && data_timeout < PACKET_WAIT_TIMEOUT ) {
+      data_timeout++;
+
       if( client.available() >= sizeof( node_packet ) ) {
         Serial.print( "Node Packet detected!" );
         Serial.println();
         data_read = true;
-        
+
         for( int i = 0; i < sizeof( node_packet ); i++ ) {
           ((byte*)&packet)[i] = client.read();
         }
@@ -214,11 +220,32 @@ void process_cmd_packet( const node_packet &pkt )
       digitalWrite(NODE_RELAY_PIN, HIGH);
       break;
     case NODE_SAVE_ID:
+      node_id = pkt.data;
       break;
     case NODE_KEEP_ALIVE:
+      break;
+    case NODE_STATUS:
+      send_cmd_to_server(NODE_STATUS, digitalRead(NODE_RELAY_PIN), &client);
       break;
     default:
       Serial.println("CMD NOT KNOWN");
       break;
   }
+}
+
+int send_cmd_to_server( const node_cmds &cmd, const byte &data, EthernetClient* client )
+{
+  node_packet packet;
+  
+  packet.id = node_id;
+  packet.cmd = cmd;
+  packet.data = data;
+
+  Serial.print("SENDING --- ");
+  Serial.print("ID: "); Serial.print( packet.id );
+  Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
+  Serial.print(" Data: "); Serial.print( packet.data, HEX );
+  Serial.println();
+
+  return (*client).write( (byte*)&packet, sizeof( packet ) );
 }
