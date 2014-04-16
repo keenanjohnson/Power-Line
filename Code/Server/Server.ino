@@ -60,8 +60,6 @@ typedef struct __node_packet {
 /*------------------------------------------------------------------------
 VARIABLES
 ------------------------------------------------------------------------*/
-//byte HTML[] PROGMEM = "<!DOCTYPE html> <html> <head> <title>Open Home Automation</title> <script> function GetArduinoInputs() { nocache = \"&nocache=\" + Math.random() * 1000000; var request = new XMLHttpRequest(); request.onreadystatechange = function() { if (this.readyState == 4) { if (this.status == 200) { if (this.responseXML != null) { // extract XML data from XML file (containing light states) var count_var = this.responseXML.getElementsByTagName('count')[0].childNodes[0].nodeValue; var string1 = \"Light \"; var light_string = \"light\"; var xml_string = ""; document.getElementById(\"input_app\").innerHTML = ""; for( var i = 1; i <= count_var; i++ ) { var element = document.createElement(\"p\"); // Assign different attributes to the element. // construct string xml_string = ""; xml_string = xml_string.concat(light_string, i); // set id element.setAttribute(\"id\", light_string.concat(i)); var foo = document.getElementById(\"input_app\"); //Append the element in page (in span). foo.appendChild(element); document.getElementById(light_string.concat(i)).innerHTML = string1.concat(i, \": \", this.responseXML.getElementsByTagName(xml_string)[0].childNodes[0].nodeValue); } } } } } request.open(\"GET\", \"ajax_inputs\" + nocache, true); request.send(null); setTimeout('GetArduinoInputs()', 1000); } function testFunc() { console.log('Testing'); } </script> </head> <body onload=\"GetArduinoInputs()\"> <h1>Lights and Groups</h1> <p><span id=\"input_app\">Updating...</span></p> <button type = \"button\" onclick=\"testFunc()\">Test Button</button> </body> </html>";
-
 File webFile; 
 
 /* This creates an instance of the webserver.  By specifying a prefix
@@ -103,15 +101,12 @@ FUNCTION PROTOTYPES
 void print_local_ip_address();
 void save_local_ip_address();
 int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, EthernetClient* client );
-void StrClear(char *str, char length);
-char StrContains(char *str, char *sfind);
-void XML_response(EthernetClient cl);
 void web_response(WebServer &server, WebServer::ConnectionType type, char *, bool);
 /*------------------------------------------------------------------------
 SETUP
 ------------------------------------------------------------------------*/
 void setup() {
-  Serial.begin(9600);       // for debugging
+  Serial.begin(9600);
 
   Serial.println("Server Starting");
   
@@ -126,6 +121,7 @@ void setup() {
       return;    // init failed
   }
 
+  // DHCP
   if (Ethernet.begin(mac) == 0) {
     Serial.println("Failed to configure Ethernet using DHCP");
     // initialize the ethernet device not using DHCP:
@@ -170,7 +166,6 @@ void loop() {
   ////////////////////////
   // Powerline Network
   ////////////////////////
-  
   
   // Broadcast IP address
   UDP.beginPacket( udp_ip, localPort );
@@ -261,91 +256,6 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
   return (*client).write( (byte*)&packet, sizeof( packet ) );
 }
 
-// sets every element of str to 0 (clears array)
-void StrClear(char *str, char length)
-{
-    for (int i = 0; i < length; i++) {
-        str[i] = 0;
-    }
-}
-
-// searches for the string sfind in the string str
-// returns 1 if string found
-// returns 0 if string not found
-char StrContains(char *str, char *sfind)
-{
-    char found = 0;
-    char index = 0;
-    char len;
-
-    len = strlen(str);
-    
-    if (strlen(sfind) > len) {
-        return 0;
-    }
-    while (index < len) {
-        if (str[index] == sfind[found]) {
-            found++;
-            if (strlen(sfind) == found) {
-                return 1;
-            }
-        }
-        else {
-            found = 0;
-        }
-        index++;
-    }
-
-    return 0;
-}
-
-// send the XML file with switch statuses and analog value
-void XML_response(EthernetClient cl)
-{
-    int analog_val;
-    
-    cl.print("<?xml version = \"1.0\" ?>");
-    cl.print("<inputs>");
-    // light count
-    cl.print("<count>");
-    cl.print(1);
-    cl.print("</count>");
-    // button 1, pin 7
-    cl.print("<light1>");
-    if (digitalRead(7)) {
-        cl.print("ON");
-    }
-    else {
-        cl.print("OFF");
-    }
-    cl.print("</light1>");
-    // button 2, pin 8
-    cl.print("<light2>");
-    if (digitalRead(8)) {
-        cl.print("ON");
-    }
-    else {
-        cl.print("OFF");
-    }
-    cl.print("</light2>");
-    // button 3, pin 6
-    cl.print("<light3>");
-    if (digitalRead(6)) {
-        cl.print("ON");
-    }
-    else {
-        cl.print("OFF");
-    }
-    cl.print("</light3>");
-    
-    // read analog pin A2
-    analog_val = analogRead(2);
-    cl.print("<analog1>");
-    cl.print(analog_val);
-    cl.print("</analog1>");
-    cl.print("</inputs>");
-}
-
 /* commands are functions that get called by the webserver framework
  * they can read any posted data from client, and they output to the
  * server to send data back to the web browser. */
@@ -359,13 +269,13 @@ void web_response(WebServer &server, WebServer::ConnectionType type, char *, boo
      For a HEAD request, we just stop after outputting headers. */
   if (type != WebServer::HEAD)
   {
-    /* this defines some HTML text in read-only memory aka PROGMEM.
-     * This is needed to avoid having the string copied to our limited
-     * amount of RAM. */
-    P(helloMsg) = "<h1>Hello, World!</h1>";
-
-    /* this is a special form of print that outputs from PROGMEM */
-    server.printP(helloMsg);
+    webFile = SD.open("index.htm");        // open web page file
+    if (webFile) {
+        while(webFile.available()) {
+            server.write(webFile.read()); // send web page to client
+        }
+        webFile.close();
+    }
   }
 }
 
