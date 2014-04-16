@@ -23,7 +23,7 @@ CONSTANTS/TYPES
 //////////////////////////////////////////////////////////////////////////
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
-#define PACKET_WAIT_TIMEOUT 50
+#define PACKET_WAIT_TIMEOUT 25
 
 typedef byte node_cmds; enum {
   NODE_OFF = 0,
@@ -153,7 +153,7 @@ void loop() {
     Serial.println();
   }
 
-  if( !client.connected() || !send_cmd_to_server( NODE_KEEP_ALIVE, 0x00, &client ) ) {
+  if( !client.connected() ) {//|| !send_cmd_to_server( NODE_KEEP_ALIVE, 0x00, &client ) ) {
     IP_found = false;
     client.flush();
     client.stop();
@@ -169,8 +169,7 @@ void loop() {
       data_timeout++;
 
       if( client.available() >= sizeof( node_packet ) ) {
-        Serial.print( "Node Packet detected!" );
-        Serial.println();
+//        Serial.println( "Node Packet detected!" );
         data_read = true;
 
         for( int i = 0; i < sizeof( node_packet ); i++ ) {
@@ -182,10 +181,12 @@ void loop() {
     }
     
     if( data_read ) {
-      Serial.print("ID: "); Serial.print( packet.id );
-      Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
-      Serial.print(" Data: "); Serial.print( packet.data, HEX );
-      Serial.println();
+      if( packet.cmd != NODE_KEEP_ALIVE ) {
+        Serial.print("ID: "); Serial.print( packet.id );
+        Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
+        Serial.print(" Data: "); Serial.print( packet.data, HEX );
+        Serial.println(); 
+      }
 
       process_cmd_packet( packet );
     }
@@ -225,7 +226,8 @@ void process_cmd_packet( const node_packet &pkt )
     case NODE_KEEP_ALIVE:
       break;
     case NODE_STATUS:
-      send_cmd_to_server(NODE_STATUS, digitalRead(NODE_RELAY_PIN), &client);
+      Serial.println("Returning status...");
+      send_cmd_to_server(NODE_STATUS, digitalRead( NODE_RELAY_PIN ), &client);
       break;
     default:
       Serial.println("CMD NOT KNOWN");
@@ -241,11 +243,13 @@ int send_cmd_to_server( const node_cmds &cmd, const byte &data, EthernetClient* 
   packet.cmd = cmd;
   packet.data = data;
 
-  Serial.print("SENDING --- ");
-  Serial.print("ID: "); Serial.print( packet.id );
-  Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
-  Serial.print(" Data: "); Serial.print( packet.data, HEX );
-  Serial.println();
+  if( cmd != NODE_KEEP_ALIVE || 1 ) {
+    Serial.print("SENDING --- ");
+    Serial.print("ID: "); Serial.print( packet.id );
+    Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
+    Serial.print(" Data: "); Serial.print( packet.data, HEX );
+    Serial.println();
+  }
 
   return (*client).write( (byte*)&packet, sizeof( packet ) );
 }

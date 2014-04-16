@@ -23,7 +23,7 @@ CONSTANTS/TYPES
 //////////////////////////////////////////////////////////////////////////
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
-#define PACKET_WAIT_TIMEOUT 50
+#define PACKET_WAIT_TIMEOUT 25
 
 typedef byte node_cmds; enum {
   NODE_OFF = 0,
@@ -195,9 +195,9 @@ void loop() {
   
       while( !data_read && data_timeout < PACKET_WAIT_TIMEOUT ) {
         data_timeout++;
-
+        Serial.println("Waiting...");
         if( client.available() >= sizeof( node_packet ) ) {
-          Serial.println( "Node Packet detected!" );
+//          Serial.println( "Node Packet detected!" );
           data_read = true;
           
           for( int i = 0; i < sizeof( node_packet ); i++ ) {
@@ -208,11 +208,13 @@ void loop() {
     }
     
     if( data_read ) {
-      Serial.print("RECEIVED --- ");
-      Serial.print("ID: "); Serial.print( packet.id );
-      Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
-      Serial.print(" Data: "); Serial.print( packet.data, HEX );
-      Serial.println();
+      if( packet.cmd != NODE_KEEP_ALIVE || 1) {
+        Serial.print("RECEIVED --- ");
+        Serial.print("ID: "); Serial.print( packet.id );
+        Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
+        Serial.print(" Data: "); Serial.print( packet.data, HEX );
+        Serial.println();
+      }
 
       process_cmd_packet( packet );
     }
@@ -220,24 +222,25 @@ void loop() {
     old_client = client;
   }
 
-  if( old_client && old_client.connected() && send_cmd_to_client( 0x01, NODE_KEEP_ALIVE, 0x00, &old_client ) ) {
-    static int count = 0;
-
-    if( count == 0 ) {
-      send_cmd_to_client( 0x01, NODE_ON, 0x02, &old_client );
-      count++;
-    } else if( count == 1 ) {
-      send_cmd_to_client( 0x01, NODE_SAVE_ID, 0x02, &old_client );
-      count++;
-    } else if( count == 2 ) {
-      send_cmd_to_client( 0x01, NODE_OFF, 0x02, &old_client );
-      count++;
-    } else {
-      send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &old_client );
-      count = 0;
-    }
+  if( old_client && old_client.connected() ) { //&& send_cmd_to_client( 0x01, NODE_KEEP_ALIVE, 0x00, &old_client ) ) {
+//    static int count = 0;
+//
+//    if( count == 0 ) {
+//      send_cmd_to_client( 0x01, NODE_ON, 0x02, &old_client );
+//      count++;
+//    } else if( count == 1 ) {
+//      send_cmd_to_client( 0x01, NODE_SAVE_ID, 0x02, &old_client );
+//      count++;
+//    } else if( count == 2 ) {
+//      send_cmd_to_client( 0x01, NODE_OFF, 0x02, &old_client );
+//      count++;
+//    } else {
+//      send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &old_client );
+//      count = 0;
+//    }
   } else {
     if( old_client ) {
+      old_client.flush();
       old_client.stop();
     }
     alreadyConnected = false;
@@ -271,7 +274,13 @@ void process_cmd_packet( const node_packet &pkt )
     case NODE_KEEP_ALIVE:
       break;
     case NODE_STATUS:
-      node_status = pkt.data;
+      Serial.print( "NODE_STATUS: " );
+      Serial.println( pkt.data );
+      if( pkt.data == HIGH ) {
+        node_status = true;
+      } else {
+        node_status = false;
+      }
       break;
     default:
       Serial.println("CMD NOT KNOWN");
@@ -293,10 +302,12 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
   packet.cmd = cmd;
   packet.data = data;
 
-  Serial.print("ID: "); Serial.print( packet.id );
-  Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
-  Serial.print(" Data: "); Serial.print( packet.data, HEX );
-  Serial.println();
+  if( cmd != NODE_KEEP_ALIVE ) {
+    Serial.print("ID: "); Serial.print( packet.id );
+    Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
+    Serial.print(" Data: "); Serial.print( packet.data, HEX );
+    Serial.println();
+  }
 
   return (*client).write( (byte*)&packet, sizeof( packet ) );
 }
@@ -316,25 +327,28 @@ void web_response(WebServer &server, WebServer::ConnectionType type, char *url_t
     bool repeat;
     char name[16], value[16];
     
-      /* readPOSTparam returns false when there are no more parameters
-       * to read from the input.  We pass in buffers for it to store
-       * the name and value strings along with the length of those
-       * buffers. */
-      repeat = server.readPOSTparam(name, 16, value, 16);
-      
-      // Light ON
-      if ( strcmp(name, "ButtonOn") == 0)
-      {
-          // Turn light on
-          Serial.println("Light on Command");
-      }
-      //Light off
-      if ( strcmp(name, "ButtonOff") == 0)
-      {
-          // Turn light off
-          Serial.println("Light off Command");
-      }
-
+    /* readPOSTparam returns false when there are no more parameters
+     * to read from the input.  We pass in buffers for it to store
+     * the name and value strings along with the length of those
+     * buffers. */
+    repeat = server.readPOSTparam(name, 16, value, 16);
+    
+    // Light ON
+    if ( strcmp(name, "ButtonOn") == 0)
+    {
+        // Turn light on
+        Serial.println("Light on Command");
+        send_cmd_to_client( 0x01, NODE_ON, 0x00, &old_client );
+        node_status = true;
+    }
+    //Light off
+    if ( strcmp(name, "ButtonOff") == 0)
+    {
+        // Turn light off
+        Serial.println("Light off Command");
+        send_cmd_to_client( 0x01, NODE_OFF, 0x00, &old_client );
+        node_status = false;
+    }
     
     return;
   }
@@ -367,20 +381,22 @@ void web_response(WebServer &server, WebServer::ConnectionType type, char *url_t
 // Handles sending out LED status updates
 void update_status(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete)
 {
+  send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &old_client );
+  
   server.print("<?xml version = \"1.0\" ?>");
-    server.print("<inputs>");
-    // light count
-    server.print("<count>");
-    server.print(1);
-    server.print("</count>");
-    // button 1, pin 7
-    server.print("<light1>");
-    if (digitalRead(7)) {
-        server.print("ON");
-    }
-    else {
-        server.print("OFF");
-    }
-    server.print("</light1>");
-    server.print("</inputs>");
+  server.print("<inputs>");
+  // light count
+  server.print("<count>");
+  server.print(1);
+  server.print("</count>");
+  // button 1, pin 7
+  server.print("<light1>");
+  if( node_status ) {
+      server.print("ON");
+  }
+  else {
+      server.print("OFF");
+  }
+  server.print("</light1>");
+  server.print("</inputs>");
 }
