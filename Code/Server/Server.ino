@@ -59,17 +59,29 @@ typedef struct __node_packet {
 /*------------------------------------------------------------------------
 VARIABLES
 ------------------------------------------------------------------------*/
+//byte HTML[] PROGMEM = "<!DOCTYPE html> <html> <head> <title>Open Home Automation</title> <script> function GetArduinoInputs() { nocache = \"&nocache=\" + Math.random() * 1000000; var request = new XMLHttpRequest(); request.onreadystatechange = function() { if (this.readyState == 4) { if (this.status == 200) { if (this.responseXML != null) { // extract XML data from XML file (containing light states) var count_var = this.responseXML.getElementsByTagName('count')[0].childNodes[0].nodeValue; var string1 = \"Light \"; var light_string = \"light\"; var xml_string = ""; document.getElementById(\"input_app\").innerHTML = ""; for( var i = 1; i <= count_var; i++ ) { var element = document.createElement(\"p\"); // Assign different attributes to the element. // construct string xml_string = ""; xml_string = xml_string.concat(light_string, i); // set id element.setAttribute(\"id\", light_string.concat(i)); var foo = document.getElementById(\"input_app\"); //Append the element in page (in span). foo.appendChild(element); document.getElementById(light_string.concat(i)).innerHTML = string1.concat(i, \": \", this.responseXML.getElementsByTagName(xml_string)[0].childNodes[0].nodeValue); } } } } } request.open(\"GET\", \"ajax_inputs\" + nocache, true); request.send(null); setTimeout('GetArduinoInputs()', 1000); } function testFunc() { console.log('Testing'); } </script> </head> <body onload=\"GetArduinoInputs()\"> <h1>Lights and Groups</h1> <p><span id=\"input_app\">Updating...</span></p> <button type = \"button\" onclick=\"testFunc()\">Test Button</button> </body> </html>";
+
+File webFile; 
+
+// Web page server
+EthernetServer web_server(80);
+
 // Enter a MAC address for your controller below.
 // Newer Ethernet shields have a MAC address printed on a sticker on the shield
 byte mac[] = { 0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x01 };
 
+IPAddress web_ip(192,168,2,210);
+
+// size of buffer used to capture HTTP requests
+#define REQ_BUF_SZ   50
+
+// buffered HTTP request stored as null terminated string
+char HTTP_req[REQ_BUF_SZ] = {0};
+// index into HTTP_req buffer
+char req_index = 0;
+
 // default to 11700
 EthernetServer server(11700);
-
-/* This creates an instance of the webserver.  By specifying a prefix
- * of "", all pages will be at the root of the server. */
-#define PREFIX ""
-WebServer webserver(PREFIX, 80);
 
 // whether or not the client was connected previously
 boolean alreadyConnected = false;
@@ -78,11 +90,9 @@ boolean alreadyConnected = false;
 EthernetUDP UDP;
 byte IP_addr[4];
 unsigned int localPort = 8888;      // local port to listen on
-IPAddress ip(255, 255, 255, 255);
+IPAddress udp_ip(255, 255, 255, 255);
 
 EthernetClient old_client;
-
-File webFile; 
 
 /*------------------------------------------------------------------------
 FUNCTION PROTOTYPES
@@ -90,60 +100,55 @@ FUNCTION PROTOTYPES
 void print_local_ip_address();
 void save_local_ip_address();
 int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, EthernetClient* client );
-void Cmd_Center(WebServer &Web_server, WebServer::ConnectionType type, char *, bool);
-
+void StrClear(char *str, char length);
+char StrContains(char *str, char *sfind);
+void XML_response(EthernetClient cl);
 /*------------------------------------------------------------------------
 SETUP
 ------------------------------------------------------------------------*/
 void setup() {
+    
+  Serial.println("Server rebooting");
   
-  // disable Ethernet chip
-  // presumably to prevent SPI bus
-  // conflicts
+   // disable Ethernet chip
     pinMode(10, OUTPUT);
     digitalWrite(10, HIGH);
+    
+    Serial.begin(9600);       // for debugging
+    
+    // initialize SD card
+    Serial.println("Initializing SD card...");
+    if (!SD.begin(4)) {
+        Serial.println("ERROR - SD card initialization failed!");
+        return;    // init failed
+    }
+    Serial.println("SUCCESS - SD card initialized.");
+    // check for index.htm file
+    if (!SD.exists("index.htm")) {
+        Serial.println("ERROR - Can't find index.htm file!");
+        return;  // can't find index file
+    }
+    Serial.println("SUCCESS - Found index.htm file.");
   
- // Open serial communications and wait for port to open:
-  Serial.begin(9600);
-
-  Serial.print("Initializing SD card...");
-  // On the Ethernet Shield, CS is pin 4. It's set as an output by default.
-  // Note that even if it's not used as the CS pin, the hardware SS pin 
-  // (10 on most Arduino boards, 53 on the Mega) must be left as an output 
-  // or the SD library functions will not work. 
-  pinMode(10, OUTPUT);
-
-  if (!SD.begin(4)) {
-    Serial.println("initialization failed!");
-    return;
-  }
-  Serial.println("initialization done.");
-
+  Serial.println("Server starting");
 
   // start the Ethernet connection:
-  while(Ethernet.begin(mac) == 0) {
-    Serial.println("Failed to configure Ethernet using DHCP");
-    // Wait a bit and try again
-    delay(100);
-  }
-  
-    /* setup our default command that will be run when the user accesses
-   * the root page on the server */
-  webserver.setDefaultCommand(&Cmd_Center);
-
-  /* start the webserver */
-  webserver.begin();
+ Ethernet.begin(mac, web_ip);
 
   // Start listening on UDP port
   UDP.begin(localPort);
 
   // start listening for clients
   server.begin();
+  
+  // Start HTTP server
+  web_server.begin(); 
 
   // print and save local IP address
   print_local_ip_address();
   save_local_ip_address();
-
+  
+  Serial.println("Setup finished");
 }
 
 /*------------------------------------------------------------------------
@@ -151,16 +156,85 @@ LOOP
 ------------------------------------------------------------------------*/
 void loop() {
   
-  #define web_buf_size 64
+  ////////////////////////
+  // Web Server
+  /////////////////////////
   
-  char web_buff[web_buf_size];
-  int web_buf_len = web_buf_size;
+   EthernetClient web_client = web_server.available();  // try to get client
+
+    if (web_client) {  // got client?
+        Serial.println("Get client");
+        boolean currentLineIsBlank = true;
+        while (web_client.connected()) {
+            if (web_client.available()) {   // client data available to read
+                char c = web_client.read(); // read 1 byte (character) from client
+                // buffer first part of HTTP request in HTTP_req array (string)
+                // leave last element in array as 0 to null terminate string (REQ_BUF_SZ - 1)
+                if (req_index < (REQ_BUF_SZ - 1)) {
+                    HTTP_req[req_index] = c;          // save HTTP request character
+                    req_index++;
+                }
+                // last line of client request is blank and ends with \n
+                // respond to client only after last line received
+                if (c == '\n' && currentLineIsBlank) {
+                    // send a standard http response header
+                    web_client.println("HTTP/1.1 200 OK");
+                    // remainder of header follows below, depending on if
+                    // web page or XML page is requested
+                    // Ajax request - send XML file
+                    if (StrContains(HTTP_req, "ajax_inputs")) {
+                        // send rest of HTTP header
+                        web_client.println("Content-Type: text/xml");
+                        web_client.println("Connection: keep-alive");
+                        web_client.println();
+                        // send XML file containing input states
+                        XML_response(web_client);
+                    }
+                    else {  // web page request
+                        // send rest of HTTP header
+                        web_client.println("Content-Type: text/html");
+                        web_client.println("Connection: keep-alive");
+                        web_client.println();
+                        // send web page
+                        webFile = SD.open("index.htm");        // open web page file
+                        if (webFile) {
+                            while(webFile.available()) {
+                                web_client.write(webFile.read()); // send web page to client
+                            }
+                            webFile.close();
+                        }
+                    }
+                    // display received HTTP request on serial port
+                    Serial.print(HTTP_req);
+                    // reset buffer index and all buffer elements to 0
+                    req_index = 0;
+                    StrClear(HTTP_req, REQ_BUF_SZ);
+                    break;
+                }
+                // every line of text received from the client ends with \r\n
+                if (c == '\n') {
+                    // last character on line of received text
+                    // starting new line with next character read
+                    currentLineIsBlank = true;
+                } 
+                else if (c != '\r') {
+                    // a text character was received from client
+                    currentLineIsBlank = false;
+                }
+            } // end if (client.available())
+        } // end while (client.connected())
+        delay(1);      // give the web browser time to receive the data
+        web_client.stop(); // close the connection
+        Serial.println("Conn closed");
+    } // end if (client)
   
-  /* process incoming connections one at a time forever */
-  webserver.processConnection(web_buff, &web_buf_len);
+  
+  ////////////////////////
+  // Powerline Network
+  ////////////////////////
   
   // Broadcast IP address
-  UDP.beginPacket( ip, localPort );
+  UDP.beginPacket( udp_ip, localPort );
   UDP.write( IP_addr, 4 );
   UDP.endPacket();
   Serial.println("Sending IP address");
@@ -210,6 +284,7 @@ void loop() {
     }
     alreadyConnected = false;
   }
+  
 }
 
 /*------------------------------------------------------------------------
@@ -248,38 +323,88 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
   return (*client).write( (byte*)&packet, sizeof( packet ) );
 }
 
-// This is the function that process all incoming web connections
-// for now. It posts the http page below
-void Cmd_Center(WebServer &Web_server, WebServer::ConnectionType type, char *, bool)
+// sets every element of str to 0 (clears array)
+void StrClear(char *str, char length)
 {
-  Serial.println("Connection received bixxxxxxx");
-  
-  /* this line sends the standard "we're all OK" headers back to the
-     browser */
-  Web_server.httpSuccess();
-
-  /* if we're handling a GET or POST, we can output our data here.
-     For a HEAD request, we just stop after outputting headers. */
-  if (type != WebServer::HEAD)
-  {
-    /* this defines some HTML text in read-only memory aka PROGMEM.
-     * This is needed to avoid having the string copied to our limited
-     * amount of RAM. */
-    P(helloMsg) = "<h1>Hello, World Boop 1!</h1>";
-  
-    /* this is a special form of print that outputs from PROGMEM */
-    Web_server.printP(helloMsg);
-    
-    /* close connection and flush */
-    Web_server.reset();
-
-    // send web page
-//    webFile = SD.open("index.htm");        // open web page file
-//    if (webFile) {
-//        while(webFile.available()) {
-//            Web_server.write(webFile.read()); // send web page to client
-//        }
-//        webFile.close();
-//    }
-  }
+    for (int i = 0; i < length; i++) {
+        str[i] = 0;
+    }
 }
+
+// searches for the string sfind in the string str
+// returns 1 if string found
+// returns 0 if string not found
+char StrContains(char *str, char *sfind)
+{
+    char found = 0;
+    char index = 0;
+    char len;
+
+    len = strlen(str);
+    
+    if (strlen(sfind) > len) {
+        return 0;
+    }
+    while (index < len) {
+        if (str[index] == sfind[found]) {
+            found++;
+            if (strlen(sfind) == found) {
+                return 1;
+            }
+        }
+        else {
+            found = 0;
+        }
+        index++;
+    }
+
+    return 0;
+}
+
+// send the XML file with switch statuses and analog value
+void XML_response(EthernetClient cl)
+{
+    int analog_val;
+    
+    cl.print("<?xml version = \"1.0\" ?>");
+    cl.print("<inputs>");
+    // light count
+    cl.print("<count>");
+    cl.print(3);
+    cl.print("</count>");
+    // button 1, pin 7
+    cl.print("<light1>");
+    if (digitalRead(7)) {
+        cl.print("ON");
+    }
+    else {
+        cl.print("OFF");
+    }
+    cl.print("</light1>");
+    // button 2, pin 8
+    cl.print("<light2>");
+    if (digitalRead(8)) {
+        cl.print("ON");
+    }
+    else {
+        cl.print("OFF");
+    }
+    cl.print("</light2>");
+    // button 3, pin 6
+    cl.print("<light3>");
+    if (digitalRead(6)) {
+        cl.print("ON");
+    }
+    else {
+        cl.print("OFF");
+    }
+    cl.print("</light3>");
+    
+    // read analog pin A2
+    analog_val = analogRead(2);
+    cl.print("<analog1>");
+    cl.print(analog_val);
+    cl.print("</analog1>");
+    cl.print("</inputs>");
+}
+
