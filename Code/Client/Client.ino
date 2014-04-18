@@ -216,9 +216,11 @@ void process_cmd_packet( const node_packet &pkt )
   switch( pkt.cmd ) {
     case NODE_OFF:
       digitalWrite(NODE_RELAY_PIN, LOW);
+      send_cmd_to_server(NODE_STATUS, digitalRead( NODE_RELAY_PIN ), &client);
       break;
     case NODE_ON:
       digitalWrite(NODE_RELAY_PIN, HIGH);
+      send_cmd_to_server(NODE_STATUS, digitalRead( NODE_RELAY_PIN ), &client);
       break;
     case NODE_SAVE_ID:
       node_id = pkt.data;
