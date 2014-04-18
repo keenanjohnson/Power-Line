@@ -55,9 +55,15 @@ typedef struct __node_packet {
 } node_packet;
 //////////////////////////////////////////////////////////////////////////
 
+#define MAX_SERVER_CONNECTIONS MAX_SOCK_NUM
+
 /*------------------------------------------------------------------------
 VARIABLES
 ------------------------------------------------------------------------*/
+
+/*------------------------------------------------------------
+WebDuino
+------------------------------------------------------------*/
 File webFile; 
 
 /* This creates an instance of the webserver.  By specifying a prefix
@@ -79,6 +85,9 @@ char HTTP_req[REQ_BUF_SZ] = {0};
 // index into HTTP_req buffer
 char req_index = 0;
 
+/*------------------------------------------------------------
+PLC
+------------------------------------------------------------*/
 // default to 11700
 EthernetServer server(11700);
 
@@ -91,11 +100,14 @@ byte IP_addr[4];
 unsigned int localPort = 8888;      // local port to listen on
 IPAddress udp_ip(255, 255, 255, 255);
 
-EthernetClient old_client;
+EthernetClient old_client[MAX_SERVER_CONNECTIONS];
 
-// node processing
-boolean node_status;
-uint16_t loop_count;
+/*------------------------------------------------------------
+Node processing
+------------------------------------------------------------*/
+boolean node_status[MAX_SERVER_CONNECTIONS];
+uint16_t loop_count[MAX_SERVER_CONNECTIONS];
+int connected_node_cnt;
 
 /*------------------------------------------------------------------------
 FUNCTION PROTOTYPES
@@ -106,6 +118,7 @@ void save_local_ip_address();
 int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, EthernetClient* client );
 void web_response(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete);
 void update_status(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete);
+
 /*------------------------------------------------------------------------
 SETUP
 ------------------------------------------------------------------------*/
@@ -152,7 +165,8 @@ void setup() {
   save_local_ip_address();
   
   // node processing
-  loop_count = 0;
+  memset( &loop_count, 0x00, sizeof( loop_count ) );
+  connected_node_cnt = 0;
   
   Serial.println("Setup finished");
 }
@@ -176,16 +190,19 @@ void loop() {
   // Powerline Network
   ////////////////////////
   
-  // Broadcast IP address
-  UDP.beginPacket( udp_ip, localPort );
-  UDP.write( IP_addr, 4 );
-  UDP.endPacket();
+  // broadcast IP address if room for more nodes
+  if( connected_node_cnt < MAX_SERVER_CONNECTIONS ) {
+    // Broadcast IP address
+    UDP.beginPacket( udp_ip, localPort );
+    UDP.write( IP_addr, 4 );
+    UDP.endPacket();
+  }
 
   // wait for a new client:
   EthernetClient client = server.available();
   
   if( client ) {
-    old_client = client;
+    old_client[0x01] = client;
     
     if (!alreadyConnected) {
       // clead out the input buffer:
@@ -218,22 +235,22 @@ void loop() {
     }
   }
 
-  if( old_client ) {
-    loop_count++;
+  if( old_client[0x01] ) {
+    loop_count[0x01]++;
     
     // haven't seen a response from client in timeout
-    if( loop_count > (2 * LOOP_COUNT_RESET ) ) {
+    if( loop_count[0x01] > (2 * LOOP_COUNT_RESET ) ) {
       // disconnect node
       Serial.println("Disconnecting node...");
-      old_client.flush();
-      old_client.stop();
+      old_client[0x01].flush();
+      old_client[0x01].stop();
       alreadyConnected = false;
-      loop_count = 0;
+      loop_count[0x01] = 0;
     }
   } else {
-    if( old_client ) {
-      old_client.flush();
-      old_client.stop();
+    if( old_client[0x01] ) {
+      old_client[0x01].flush();
+      old_client[0x01].stop();
     }
     alreadyConnected = false;
   }
@@ -256,7 +273,7 @@ void print_local_ip_address()
 
 void process_cmd_packet( const node_packet &pkt )
 {
-  loop_count = 0;
+  loop_count[0x01] = 0;
 
   switch( pkt.cmd ) {
     case NODE_OFF:
@@ -266,22 +283,22 @@ void process_cmd_packet( const node_packet &pkt )
     case NODE_SAVE_ID:
       break;
     case NODE_KEEP_ALIVE:
-      send_cmd_to_client( pkt.id, NODE_KEEP_ALIVE, 0x00, &old_client );
+      send_cmd_to_client( pkt.id, NODE_KEEP_ALIVE, 0x00, &(old_client[0x01]) );
       Serial.print( "NODE_STATUS: " );
       Serial.println( pkt.data );
       if( pkt.data == HIGH ) {
-        node_status = true;
+        node_status[pkt.id] = true;
       } else {
-        node_status = false;
+        node_status[pkt.id] = false;
       }
       break;
     case NODE_STATUS:
       Serial.print( "NODE_STATUS: " );
       Serial.println( pkt.data );
       if( pkt.data == HIGH ) {
-        node_status = true;
+        node_status[pkt.id] = true;
       } else {
-        node_status = false;
+        node_status[pkt.id] = false;
       }
       break;
     default:
@@ -341,16 +358,16 @@ void web_response(WebServer &server, WebServer::ConnectionType type, char *url_t
     {
         // Turn light on
         Serial.println("Light on Command");
-        send_cmd_to_client( 0x01, NODE_ON, 0x00, &old_client );
-        node_status = true;
+        send_cmd_to_client( 0x01, NODE_ON, 0x00, &(old_client[0x01]) );
+        node_status[0x01] = true;
     }
     //Light off
     if ( strcmp(name, "ButtonOff") == 0)
     {
         // Turn light off
         Serial.println("Light off Command");
-        send_cmd_to_client( 0x01, NODE_OFF, 0x00, &old_client );
-        node_status = false;
+        send_cmd_to_client( 0x01, NODE_OFF, 0x00, &(old_client[0x01]) );
+        node_status[0x01] = false;
     }
     
     return;
@@ -385,7 +402,7 @@ void web_response(WebServer &server, WebServer::ConnectionType type, char *url_t
 void update_status(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete)
 {
   // Grabbing status from node's keep_alive msg to avoid traffic
-  //send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &old_client );
+  //send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &(old_client[0x01]) );
   
   server.print("<?xml version = \"1.0\" ?>");
   server.print("<inputs>");
@@ -395,7 +412,7 @@ void update_status(WebServer &server, WebServer::ConnectionType type, char *url_
   server.print("</count>");
   // button 1, pin 7
   server.print("<light1>");
-  if( node_status ) {
+  if( node_status[0x01] ) {
       server.print("ON");
   }
   else {
