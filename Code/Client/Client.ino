@@ -53,7 +53,8 @@ typedef struct __node_packet {
 } node_packet;
 //////////////////////////////////////////////////////////////////////////
 
-#define NODE_RELAY_PIN 5
+#define NODE_RELAY_PIN   5
+#define LOOP_COUNT_RESET 2000
 
 /*------------------------------------------------------------------------
 VARIABLES
@@ -71,10 +72,17 @@ EthernetClient client;
 EthernetUDP UDP;
 unsigned int localPort = 8888;      // local port to listen on
 
+// UDP IP broadcast
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE]; //buffer to hold incoming packet,
 boolean IP_found = false;
 
+// storage for node's ID grabbed from server
 int node_id;
+
+// loop count to determine when to send NODE_KEEP_ALIVE
+uint16_t loop_count;
+boolean keep_alive_rec;
+boolean keep_alive_sent;
 
 /*------------------------------------------------------------------------
 FUNCTION PROTOTYPES
@@ -105,6 +113,11 @@ void setup() {
 
   // print local IP address
   print_local_ip_address();
+  
+  // disconnect init
+  keep_alive_rec = false;
+  keep_alive_sent = false;
+  loop_count = 0;
 }
 
 /*------------------------------------------------------------------------
@@ -138,25 +151,38 @@ void loop() {
     
     IP_found = true;
 
-    if( !client.connect( UDP.remoteIP(), 11700) ) {
+    while( !client.connect( UDP.remoteIP(), 11700) ) {
       Serial.println("Client cannot connect...");
+      delay(100);
     }
     
     while( !client.connected() ) {
       Serial.println("Waiting to connect...");
     }
     
-    // bring up connection
-    client.println("A");
+    // bring up connection with KEEP_ALIVE cmd
+    send_cmd_to_server( NODE_KEEP_ALIVE, digitalRead( NODE_RELAY_PIN ), &client );
     
-    Serial.write("DATA SENT");
-    Serial.println();
+    Serial.println("CONN BROUGHT UP");
   }
 
-  if( !client.connected() ) {//|| !send_cmd_to_server( NODE_KEEP_ALIVE, 0x00, &client ) ) {
-    IP_found = false;
-    client.flush();
-    client.stop();
+  loop_count++;
+  
+  if( loop_count > LOOP_COUNT_RESET ) {
+    // keep alive sent and didn't receive a reply
+    // close connection to server, reset checks
+    if( keep_alive_sent && !keep_alive_rec ) {
+      Serial.println("TIMEOUT disconnection...");
+      IP_found = false;
+      client.flush();
+      client.stop();
+      keep_alive_sent = false;
+      keep_alive_rec = true;
+    } else {
+      send_cmd_to_server( NODE_KEEP_ALIVE, digitalRead( NODE_RELAY_PIN ), &client );
+    }
+
+    loop_count = 0;
   }
 
   if( IP_found )
@@ -169,30 +195,26 @@ void loop() {
       data_timeout++;
 
       if( client.available() >= sizeof( node_packet ) ) {
-//        Serial.println( "Node Packet detected!" );
         data_read = true;
 
-        for( int i = 0; i < sizeof( node_packet ); i++ ) {
-          ((byte*)&packet)[i] = client.read();
-        }
+        client.read( (byte*)&packet, sizeof( node_packet ) );
       }
-
-      // TODO MR: may want to flush data from buffer here
     }
     
     if( data_read ) {
-      if( packet.cmd != NODE_KEEP_ALIVE ) {
+      if( packet.cmd != NODE_KEEP_ALIVE || 1 ) {
+        Serial.print("RECEIVED --- ");
         Serial.print("ID: "); Serial.print( packet.id );
         Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
         Serial.print(" Data: "); Serial.print( packet.data, HEX );
-        Serial.println(); 
+        Serial.println();
       }
 
       process_cmd_packet( packet );
     }
 
   } else {
-    Serial.write("IP NOT FOUND");
+    Serial.print("IP NOT FOUND");
     Serial.println();
   }
 }
@@ -223,9 +245,11 @@ void process_cmd_packet( const node_packet &pkt )
       send_cmd_to_server(NODE_STATUS, digitalRead( NODE_RELAY_PIN ), &client);
       break;
     case NODE_SAVE_ID:
+      keep_alive_rec = true;
       node_id = pkt.data;
       break;
     case NODE_KEEP_ALIVE:
+      keep_alive_rec = true;
       break;
     case NODE_STATUS:
       Serial.println("Returning status...");
@@ -244,6 +268,11 @@ int send_cmd_to_server( const node_cmds &cmd, const byte &data, EthernetClient* 
   packet.id = node_id;
   packet.cmd = cmd;
   packet.data = data;
+  
+  if( cmd == NODE_KEEP_ALIVE ) {
+    keep_alive_rec = false;
+    keep_alive_sent = true;
+  }
 
   if( cmd != NODE_KEEP_ALIVE || 1 ) {
     Serial.print("SENDING --- ");
@@ -253,5 +282,5 @@ int send_cmd_to_server( const node_cmds &cmd, const byte &data, EthernetClient* 
     Serial.println();
   }
 
-  return (*client).write( (byte*)&packet, sizeof( packet ) );
+  return (*client).write( (byte*)&packet, sizeof( node_packet ) );
 }

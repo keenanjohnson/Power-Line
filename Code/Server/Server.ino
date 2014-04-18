@@ -178,6 +178,8 @@ void loop() {
   EthernetClient client = server.available();
   
   if( client ) {
+    old_client = client;
+    
     if (!alreadyConnected) {
       // clead out the input buffer:
       client.flush();
@@ -190,21 +192,10 @@ void loop() {
     boolean data_read = false;
     node_packet packet;
 
-    if( client.available() > 0 ) {
-      int data_timeout = 0;
-  
-      while( !data_read && data_timeout < PACKET_WAIT_TIMEOUT ) {
-        data_timeout++;
-        Serial.println("Waiting...");
-        if( client.available() >= sizeof( node_packet ) ) {
-//          Serial.println( "Node Packet detected!" );
-          data_read = true;
-          
-          for( int i = 0; i < sizeof( node_packet ); i++ ) {
-            ((byte*)&packet)[i] = client.read();
-          }
-        }
-      }
+    if( client.available() >= sizeof( node_packet ) ) {
+      data_read = true;
+      
+      client.read( (byte*)&packet, sizeof( node_packet ) );
     }
     
     if( data_read ) {
@@ -218,8 +209,6 @@ void loop() {
 
       process_cmd_packet( packet );
     }
-
-    old_client = client;
   }
 
   if( old_client && old_client.connected() ) { //&& send_cmd_to_client( 0x01, NODE_KEEP_ALIVE, 0x00, &old_client ) ) {
@@ -272,6 +261,14 @@ void process_cmd_packet( const node_packet &pkt )
     case NODE_SAVE_ID:
       break;
     case NODE_KEEP_ALIVE:
+      send_cmd_to_client( pkt.id, NODE_KEEP_ALIVE, 0x00, &old_client );
+      Serial.print( "NODE_STATUS: " );
+      Serial.println( pkt.data );
+      if( pkt.data == HIGH ) {
+        node_status = true;
+      } else {
+        node_status = false;
+      }
       break;
     case NODE_STATUS:
       Serial.print( "NODE_STATUS: " );
@@ -302,14 +299,15 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
   packet.cmd = cmd;
   packet.data = data;
 
-  if( cmd != NODE_KEEP_ALIVE ) {
+  if( cmd != NODE_KEEP_ALIVE || 1 ) {
+    Serial.print("SENDING --- ");
     Serial.print("ID: "); Serial.print( packet.id );
     Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
     Serial.print(" Data: "); Serial.print( packet.data, HEX );
     Serial.println();
   }
 
-  return (*client).write( (byte*)&packet, sizeof( packet ) );
+  return (*client).write( (byte*)&packet, sizeof( node_packet ) );
 }
 
 /* commands are functions that get called by the webserver framework
@@ -381,7 +379,8 @@ void web_response(WebServer &server, WebServer::ConnectionType type, char *url_t
 // Handles sending out LED status updates
 void update_status(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete)
 {
-  send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &old_client );
+  // Grabbing status from node's keep_alive msg to avoid traffic
+  //send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &old_client );
   
   server.print("<?xml version = \"1.0\" ?>");
   server.print("<inputs>");
