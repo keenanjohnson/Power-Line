@@ -13,6 +13,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
+
 #include "WebServer.h"
 
 /*------------------------------------------------------------------------
@@ -24,6 +25,7 @@ CONSTANTS/TYPES
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
 #define PACKET_WAIT_TIMEOUT 25
+#define LOOP_COUNT_RESET    4000
 
 typedef byte node_cmds; enum {
   NODE_OFF = 0,
@@ -91,7 +93,9 @@ IPAddress udp_ip(255, 255, 255, 255);
 
 EthernetClient old_client;
 
+// node processing
 boolean node_status;
+uint16_t loop_count;
 
 /*------------------------------------------------------------------------
 FUNCTION PROTOTYPES
@@ -146,6 +150,9 @@ void setup() {
   // print and save local IP address
   print_local_ip_address();
   save_local_ip_address();
+  
+  // node processing
+  loop_count = 0;
   
   Serial.println("Setup finished");
 }
@@ -211,22 +218,18 @@ void loop() {
     }
   }
 
-  if( old_client && old_client.connected() ) { //&& send_cmd_to_client( 0x01, NODE_KEEP_ALIVE, 0x00, &old_client ) ) {
-//    static int count = 0;
-//
-//    if( count == 0 ) {
-//      send_cmd_to_client( 0x01, NODE_ON, 0x02, &old_client );
-//      count++;
-//    } else if( count == 1 ) {
-//      send_cmd_to_client( 0x01, NODE_SAVE_ID, 0x02, &old_client );
-//      count++;
-//    } else if( count == 2 ) {
-//      send_cmd_to_client( 0x01, NODE_OFF, 0x02, &old_client );
-//      count++;
-//    } else {
-//      send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &old_client );
-//      count = 0;
-//    }
+  if( old_client ) {
+    loop_count++;
+    
+    // haven't seen a response from client in timeout
+    if( loop_count > (2 * LOOP_COUNT_RESET ) ) {
+      // disconnect node
+      Serial.println("Disconnecting node...");
+      old_client.flush();
+      old_client.stop();
+      alreadyConnected = false;
+      loop_count = 0;
+    }
   } else {
     if( old_client ) {
       old_client.flush();
@@ -253,6 +256,8 @@ void print_local_ip_address()
 
 void process_cmd_packet( const node_packet &pkt )
 {
+  loop_count = 0;
+
   switch( pkt.cmd ) {
     case NODE_OFF:
       break;

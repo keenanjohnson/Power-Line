@@ -15,6 +15,7 @@
 
 
 
+
 /*------------------------------------------------------------------------
 CONSTANTS/TYPES
 ------------------------------------------------------------------------*/
@@ -24,6 +25,7 @@ CONSTANTS/TYPES
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
 #define PACKET_WAIT_TIMEOUT 25
+#define LOOP_COUNT_RESET    4000
 
 typedef byte node_cmds; enum {
   NODE_OFF = 0,
@@ -54,7 +56,7 @@ typedef struct __node_packet {
 //////////////////////////////////////////////////////////////////////////
 
 #define NODE_RELAY_PIN   5
-#define LOOP_COUNT_RESET 2000
+
 
 /*------------------------------------------------------------------------
 VARIABLES
@@ -191,16 +193,12 @@ void loop() {
     int data_timeout = 0;
     node_packet packet;
 
-    while( !data_read && data_timeout < PACKET_WAIT_TIMEOUT ) {
-      data_timeout++;
+    if( client.available() >= sizeof( node_packet ) ) {
+      data_read = true;
 
-      if( client.available() >= sizeof( node_packet ) ) {
-        data_read = true;
-
-        client.read( (byte*)&packet, sizeof( node_packet ) );
-      }
+      client.read( (byte*)&packet, sizeof( node_packet ) );
     }
-    
+
     if( data_read ) {
       if( packet.cmd != NODE_KEEP_ALIVE || 1 ) {
         Serial.print("RECEIVED --- ");
