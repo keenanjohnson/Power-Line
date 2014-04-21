@@ -27,6 +27,7 @@
                                 //Add label to button
                                 var label = "Light" + i;
                                 var but_label = document.createTextNode(label);
+                                element.id = label;
                                 element.appendChild(but_label);
                                 
                                 // Set state of light
@@ -62,9 +63,14 @@
             setTimeout('GetArduinoInputs()', 1000);
         }
 
+        // Call back for button presses
         function buttonClick()
         {
-            console.log('Button click');
+            // New HTTP Post
+            var request = new XMLHttpRequest();
+-           request.open("POST", "", true);
+            // Post contains the Id of the light
+-           request.send(this.id);
         }
 
     </script>
