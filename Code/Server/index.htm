@@ -13,59 +13,64 @@
                         if (this.responseXML != null) {
                             // extract XML data from XML file (containing light states)
 							var count_var = this.responseXML.getElementsByTagName('count')[0].childNodes[0].nodeValue;
-							var string1 = "Light ";
-							var light_string = "light";
-							var xml_string = "";
 							
-                           document.getElementById("input_app").innerHTML = "";
+                            // Get main body of HTML document
+                            document.getElementById("input_app").innerHTML = "";
 
+                            var input_section = document.getElementById("input_app");
+
+                            // Loop for each light reported by base station
 							for( var i = 1; i <= count_var; i++ ) {
-								var element = document.createElement("p");
-							    // Assign different attributes to the element.
-								// construct string
-								xml_string = "";
-								xml_string = xml_string.concat(light_string, i);
-								// set id
-								element.setAttribute("id", light_string.concat(i));
-							    var foo = document.getElementById("input_app");
+                                // Create new device element
+								var element = document.createElement("BUTTON");
+
+                                //Add label to button
+                                var label = "Light" + i;
+                                var but_label = document.createTextNode(label);
+                                element.appendChild(but_label);
+                                
+                                // Set state of light
+                                if(this.responseXML.getElementsByTagName("light" + i)[0].childNodes[0].nodeValue  == "ON")
+                                {
+                                    // Set button to green
+                                    element.style.backgroundColor = "#00FF00";
+                                }
+                                else
+                                {
+                                    // Set button to red
+                                    element.style.backgroundColor = "#FF0000";
+                                }
+
+                                // Add click callback funtion
+                                element.onclick = buttonClick;
+
 							    //Append the element in page (in span).
-							    foo.appendChild(element);
-								
-								document.getElementById(light_string.concat(i)).innerHTML = 
-									string1.concat(i, ": ", this.responseXML.getElementsByTagName(xml_string)[0].childNodes[0].nodeValue);
+							    input_section.appendChild(element);
+
 							}
                         }
                     }
                 }
             }
+
+            // Send the status update request
             request.open("GET", "Status", true);
             request.send(null);
+
+            // Delay to periodically send status
+            // requests to base station
             setTimeout('GetArduinoInputs()', 1000);
         }
 
-        // Button On Command
-        function Button1On()
+        function buttonClick()
         {
-            var request = new XMLHttpRequest();
-            request.open("POST", "", true);
-            request.send("ButtonOn");
-        }
-
-        // Button off command
-        function Button1Off()
-        {
-            var request = new XMLHttpRequest();
-            request.open("POST", "", true);
-            request.send("ButtonOff");
+            console.log('Button click');
         }
 
     </script>
     </head>
     <body onload="GetArduinoInputs()">
-        <h1>Light Status</h1>
+        <h1>All of the Lights</h1>
 		<p><span id="input_app">Updating...</span></p>
-        <h1>Light Commands</h1>
-        <button type = "button" onclick="Button1On()">Light 1 On</button>
-        <button type = "button" onclick="Button1Off()">Light 1 Off</button>
     </body>
 </html>
