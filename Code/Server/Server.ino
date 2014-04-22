@@ -104,11 +104,13 @@ Node processing
 ------------------------------------------------------------*/
 boolean node_status[MAX_SERVER_CONNECTIONS];
 unsigned long loop_time[MAX_SERVER_CONNECTIONS];
+boolean node_connected[MAX_SERVER_CONNECTIONS];
 int connected_node_cnt;
 
 /*------------------------------------------------------------------------
 FUNCTION PROTOTYPES
 ------------------------------------------------------------------------*/
+boolean client_equal( EthernetClient &clienta, EthernetClient &clientb );
 void print_local_ip_address();
 void process_cmd_packet( const node_packet &pkt );
 void save_local_ip_address();
@@ -168,7 +170,8 @@ void setup() {
 
   // node processing
   for( int i = 0; i < MAX_SERVER_CONNECTIONS; i++ ) {
-    loop_time[i] = 0xFFFFFFFF;
+    loop_time[i] = 0;
+    node_connected[i] = false;
   }
   connected_node_cnt = 0;
   
@@ -211,22 +214,24 @@ void loop() {
     
     // determine where to add client in old_client[]
     for( int i = 0; i < MAX_SERVER_CONNECTIONS; i++ ) {
-      if( client == old_client[i] ) {
+      if( node_connected[i] && old_client[i] && client_equal( client, old_client[i] ) ) {
         alreadyConnected = true;
         id = i;
         break;
-      }
-
-      if( !old_client[i] && id == 0xFF ) {
+      } else if( !node_connected[i] && id == 0xFF ) {
         id = i;
       }
     }
 
     if (!alreadyConnected) {
+      Serial.print( F("SERVER: id = ") );
+      Serial.println( id );
+      
       // clead out the input buffer:
       client.flush();
       Serial.println("We have a new client");
       alreadyConnected = true;
+      node_connected[id] = true;
       connected_node_cnt++;
 
       // update client with ID
@@ -234,7 +239,7 @@ void loop() {
 
       // save into client array
       old_client[id] = client;
-      loop_time[id] = millis();
+      loop_time[id] = 0;
     }
   }
 
@@ -263,12 +268,15 @@ void loop() {
       }
 
       // haven't seen a response from client in timeout
-      if( millis() - loop_time[i] > 2 * PACKET_WAIT_TIMEOUT ) {
+      if( ( loop_time[i] != 0 ) && ( millis() - loop_time[i] > 2 * PACKET_WAIT_TIMEOUT ) ) {
         // disconnect node
         Serial.print( i );
         Serial.println(F(" disconnecting node..."));
         old_client[i].flush();
         old_client[i].stop();
+        
+        node_connected[i] = false;
+        connected_node_cnt--;
       }
     } else {
       // do nothing, no client in slot
@@ -280,6 +288,23 @@ void loop() {
 /*------------------------------------------------------------------------
 FUNCTION DEFINITIONS
 ------------------------------------------------------------------------*/
+boolean client_equal( EthernetClient &clienta, EthernetClient &clientb )
+{ 
+  byte testa[] = { 0, 0, 0, 0 };
+  byte testb[] = { 0, 0, 0, 0 };
+  
+  clienta.getRemoteIP(testa);
+  clientb.getRemoteIP(testb);
+  
+  for( int i = 0; i < sizeof( testa ); i++ ) {
+    if( testa[i] != testb[i] ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 void print_local_ip_address()
 {
   Serial.print(F("My IP address: "));
