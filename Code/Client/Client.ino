@@ -24,8 +24,7 @@ CONSTANTS/TYPES
 //////////////////////////////////////////////////////////////////////////
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
-#define PACKET_WAIT_TIMEOUT 25
-#define LOOP_COUNT_RESET    4000
+#define PACKET_WAIT_TIMEOUT 1000
 
 typedef byte node_cmds; enum {
   NODE_OFF = 0,
@@ -81,7 +80,7 @@ boolean IP_found = false;
 int node_id;
 
 // loop count to determine when to send NODE_KEEP_ALIVE
-uint16_t loop_count;
+unsigned long loop_time;
 boolean keep_alive_rec;
 boolean keep_alive_sent;
 
@@ -118,7 +117,6 @@ void setup() {
   // disconnect init
   keep_alive_rec = false;
   keep_alive_sent = false;
-  loop_count = 0;
 }
 
 /*------------------------------------------------------------------------
@@ -167,25 +165,6 @@ void loop() {
     Serial.println("CONN BROUGHT UP");
   }
 
-  loop_count++;
-  
-  if( loop_count > LOOP_COUNT_RESET ) {
-    // keep alive sent and didn't receive a reply
-    // close connection to server, reset checks
-    if( keep_alive_sent && !keep_alive_rec ) {
-      Serial.println("TIMEOUT disconnection...");
-      IP_found = false;
-      client.flush();
-      client.stop();
-      keep_alive_sent = false;
-      keep_alive_rec = true;
-    } else {
-      send_cmd_to_server( NODE_KEEP_ALIVE, digitalRead( NODE_RELAY_PIN ), &client );
-    }
-
-    loop_count = 0;
-  }
-
   if( IP_found )
   {
     boolean data_read = false;
@@ -210,6 +189,21 @@ void loop() {
       process_cmd_packet( packet );
     }
 
+    if( millis() - loop_time > PACKET_WAIT_TIMEOUT ) {
+      // keep alive sent and didn't receive a reply
+      // close connection to server, reset checks
+      if( keep_alive_sent && !keep_alive_rec ) {
+        Serial.println("TIMEOUT disconnection...");
+        IP_found = false;
+        client.flush();
+        client.stop();
+        keep_alive_sent = false;
+        keep_alive_rec = true;
+      } else {
+        send_cmd_to_server( NODE_KEEP_ALIVE, digitalRead( NODE_RELAY_PIN ), &client );
+      }
+    }
+
   } else {
     Serial.print("IP NOT FOUND");
     Serial.println();
@@ -232,6 +226,8 @@ void print_local_ip_address()
 
 void process_cmd_packet( const node_packet &pkt )
 {
+  loop_time = millis();
+  
   switch( pkt.cmd ) {
     case NODE_OFF:
       digitalWrite(NODE_RELAY_PIN, LOW);
@@ -269,6 +265,7 @@ int send_cmd_to_server( const node_cmds &cmd, const byte &data, EthernetClient* 
   if( cmd == NODE_KEEP_ALIVE ) {
     keep_alive_rec = false;
     keep_alive_sent = true;
+    loop_time = millis();
   }
 
   if( cmd != NODE_KEEP_ALIVE || 1 ) {

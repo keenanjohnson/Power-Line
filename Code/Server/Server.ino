@@ -13,6 +13,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
+#include <time.h>
 
 #include "WebServer.h"
 
@@ -24,8 +25,7 @@ CONSTANTS/TYPES
 //////////////////////////////////////////////////////////////////////////
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
-#define PACKET_WAIT_TIMEOUT 25
-#define LOOP_COUNT_RESET    4000
+#define PACKET_WAIT_TIMEOUT 1000
 
 typedef byte node_cmds; enum {
   NODE_OFF = 0,
@@ -91,9 +91,6 @@ PLC
 // default to 11700
 EthernetServer server(11700);
 
-// whether or not the client was connected previously
-boolean alreadyConnected = false;
-
 // An EthernetUDP instance to let us send and receive packets over UDP
 EthernetUDP UDP;
 byte IP_addr[4];
@@ -106,7 +103,7 @@ EthernetClient old_client[MAX_SERVER_CONNECTIONS];
 Node processing
 ------------------------------------------------------------*/
 boolean node_status[MAX_SERVER_CONNECTIONS];
-uint16_t loop_count[MAX_SERVER_CONNECTIONS];
+unsigned long loop_time[MAX_SERVER_CONNECTIONS];
 int connected_node_cnt;
 
 /*------------------------------------------------------------------------
@@ -118,6 +115,7 @@ void save_local_ip_address();
 int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, EthernetClient* client );
 void web_response(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete);
 void update_status(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete);
+int freeRam();
 
 /*------------------------------------------------------------------------
 SETUP
@@ -125,24 +123,28 @@ SETUP
 void setup() {
   Serial.begin(9600);
 
-  Serial.println("Server Starting");
-  
+  Serial.println(F("Server Starting"));
+
   // disable Ethernet chip
   pinMode(10, OUTPUT);
   digitalWrite(10, HIGH);
- 
+
   // initialize SD card
-  Serial.println("Initializing SD card...");
-  if (!SD.begin(4)) {
-      Serial.println("ERROR - SD card initialization failed!");
-      return;    // init failed
+  Serial.println(F("Initializing SD card..."));
+  if(!SD.begin(4)) {
+    Serial.println(F("ERROR - SD card initialization failed!"));
+    return;    // init failed
+  } else {
+    Serial.println(F("SD card initialized"));
   }
 
   // DHCP
-  if (Ethernet.begin(mac) == 0) {
-    Serial.println("Failed to configure Ethernet using DHCP");
+  if(Ethernet.begin(mac) == 0) {
+    Serial.println(F("Failed to configure Ethernet using DHCP"));
     // initialize the ethernet device not using DHCP:
     Ethernet.begin(mac, web_ip);
+  } else {
+    Serial.println(F("Eth configured with DHCP"));
   }
 
   // Start listening on UDP port
@@ -150,25 +152,27 @@ void setup() {
 
   // start listening for clients
   server.begin();
-  
+
   /* setup our default command that will be run when the user accesses
    * the root page on the server */
   webserver.setDefaultCommand(&web_response);
-  
+
   webserver.addCommand("Status", &update_status);
-  
+
   /* start the webserver */
   webserver.begin();
 
   // print and save local IP address
   print_local_ip_address();
   save_local_ip_address();
-  
+
   // node processing
-  memset( &loop_count, 0x00, sizeof( loop_count ) );
+  for( int i = 0; i < MAX_SERVER_CONNECTIONS; i++ ) {
+    loop_time[i] = 0xFFFFFFFF;
+  }
   connected_node_cnt = 0;
   
-  Serial.println("Setup finished");
+  Serial.println(F("Setup finished"));
 }
 
 /*------------------------------------------------------------------------
@@ -200,61 +204,77 @@ void loop() {
 
   // wait for a new client:
   EthernetClient client = server.available();
-  
+
   if( client ) {
-    old_client[0x01] = client;
+    boolean alreadyConnected = false;
+    int id = 0xFF;
     
+    // determine where to add client in old_client[]
+    for( int i = 0; i < MAX_SERVER_CONNECTIONS; i++ ) {
+      if( client == old_client[i] ) {
+        alreadyConnected = true;
+        id = i;
+        break;
+      }
+
+      if( !old_client[i] && id == 0xFF ) {
+        id = i;
+      }
+    }
+
     if (!alreadyConnected) {
       // clead out the input buffer:
       client.flush();
       Serial.println("We have a new client");
       alreadyConnected = true;
+      connected_node_cnt++;
 
-      send_cmd_to_client( 0x01, NODE_SAVE_ID, 0x01, &client );
+      // update client with ID
+      send_cmd_to_client( id, NODE_SAVE_ID, id, &client );
+
+      // save into client array
+      old_client[id] = client;
+      loop_time[id] = millis();
     }
+  }
 
-    boolean data_read = false;
-    node_packet packet;
+  for( int i = 0; i < MAX_SERVER_CONNECTIONS; i++ ) {
+    if( old_client[i] ) {
 
-    if( client.available() >= sizeof( node_packet ) ) {
-      data_read = true;
-      
-      client.read( (byte*)&packet, sizeof( node_packet ) );
-    }
-    
-    if( data_read ) {
-      if( packet.cmd != NODE_KEEP_ALIVE || 1) {
-        Serial.print("RECEIVED --- ");
-        Serial.print("ID: "); Serial.print( packet.id );
-        Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
-        Serial.print(" Data: "); Serial.print( packet.data, HEX );
-        Serial.println();
+      boolean data_read = false;
+      node_packet packet;
+
+      if( old_client[i].available() >= sizeof( node_packet ) ) {
+        data_read = true;
+
+        old_client[i].read( (byte*)&packet, sizeof( node_packet ) );
       }
 
-      process_cmd_packet( packet );
+      if( data_read ) {
+        if( packet.cmd != NODE_KEEP_ALIVE || 1) {
+          Serial.print(F("RECEIVED --- "));
+          Serial.print(F("ID: ")); Serial.print( packet.id );
+          Serial.print(F(" CMD: ")); Serial.print( node_cmds_string[ packet.cmd ] );
+          Serial.print(F(" Data: ")); Serial.print( packet.data, HEX );
+          Serial.println();
+        }
+
+        process_cmd_packet( packet );
+      }
+
+      // haven't seen a response from client in timeout
+      if( millis() - loop_time[i] > 2 * PACKET_WAIT_TIMEOUT ) {
+        // disconnect node
+        Serial.print( i );
+        Serial.println(F(" disconnecting node..."));
+        old_client[i].flush();
+        old_client[i].stop();
+      }
+    } else {
+      // do nothing, no client in slot
     }
   }
 
-  if( old_client[0x01] ) {
-    loop_count[0x01]++;
-    
-    // haven't seen a response from client in timeout
-    if( loop_count[0x01] > (2 * LOOP_COUNT_RESET ) ) {
-      // disconnect node
-      Serial.println("Disconnecting node...");
-      old_client[0x01].flush();
-      old_client[0x01].stop();
-      alreadyConnected = false;
-      loop_count[0x01] = 0;
-    }
-  } else {
-    if( old_client[0x01] ) {
-      old_client[0x01].flush();
-      old_client[0x01].stop();
-    }
-    alreadyConnected = false;
-  }
-  
 }
 
 /*------------------------------------------------------------------------
@@ -262,18 +282,18 @@ FUNCTION DEFINITIONS
 ------------------------------------------------------------------------*/
 void print_local_ip_address()
 {
-  Serial.print("My IP address: ");
+  Serial.print(F("My IP address: "));
   for (byte thisByte = 0; thisByte < 4; thisByte++) {
     // print the value of each byte of the IP address:
     Serial.print(Ethernet.localIP()[thisByte], DEC);
-    Serial.print(".");
+    Serial.print(F("."));
   }
   Serial.println();
 }
 
 void process_cmd_packet( const node_packet &pkt )
 {
-  loop_count[0x01] = 0;
+  loop_time[pkt.id] = millis();
 
   switch( pkt.cmd ) {
     case NODE_OFF:
@@ -283,8 +303,8 @@ void process_cmd_packet( const node_packet &pkt )
     case NODE_SAVE_ID:
       break;
     case NODE_KEEP_ALIVE:
-      send_cmd_to_client( pkt.id, NODE_KEEP_ALIVE, 0x00, &(old_client[0x01]) );
-      Serial.print( "NODE_STATUS: " );
+      send_cmd_to_client( pkt.id, NODE_KEEP_ALIVE, 0x00, &(old_client[pkt.id]) );
+      Serial.print( F("NODE_STATUS: ") );
       Serial.println( pkt.data );
       if( pkt.data == HIGH ) {
         node_status[pkt.id] = true;
@@ -293,7 +313,7 @@ void process_cmd_packet( const node_packet &pkt )
       }
       break;
     case NODE_STATUS:
-      Serial.print( "NODE_STATUS: " );
+      Serial.print( F("NODE_STATUS: ") );
       Serial.println( pkt.data );
       if( pkt.data == HIGH ) {
         node_status[pkt.id] = true;
@@ -302,7 +322,7 @@ void process_cmd_packet( const node_packet &pkt )
       }
       break;
     default:
-      Serial.println("CMD NOT KNOWN");
+      Serial.println(F("CMD NOT KNOWN"));
       break;
   }
 }
@@ -320,12 +340,17 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
   packet.id = id;
   packet.cmd = cmd;
   packet.data = data;
+  
+  if( !(*client) ) {
+    Serial.println( F("send_cmd_to_client to NULL") );
+    return 0;
+  }
 
   if( cmd != NODE_KEEP_ALIVE || 1 ) {
-    Serial.print("SENDING --- ");
-    Serial.print("ID: "); Serial.print( packet.id );
-    Serial.print(" CMD: "); Serial.print( node_cmds_string[ packet.cmd ] );
-    Serial.print(" Data: "); Serial.print( packet.data, HEX );
+    Serial.print(F("SENDING --- "));
+    Serial.print(F("ID: ")); Serial.print( packet.id );
+    Serial.print(F(" CMD: ")); Serial.print( node_cmds_string[ packet.cmd ] );
+    Serial.print(F(" Data: ")); Serial.print( packet.data, HEX );
     Serial.println();
   }
 
@@ -420,4 +445,10 @@ void update_status(WebServer &server, WebServer::ConnectionType type, char *url_
   }
   server.print("</light1>");
   server.print("</inputs>");
+}
+
+int freeRam() {
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
 }
