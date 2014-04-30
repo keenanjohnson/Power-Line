@@ -1,6 +1,25 @@
 LIGHT PROTOCOL
-DRAFT v1, 9 April 2014
+DRAFT v2, 29 April 2014
 
 The packets sent in the light protocol start with an identifier byte of 0x01, followed by protocol-specific information.
 
+The protocol-specific information consists of a one-byte node identifier, a one-byte command, and a one-byte data field.
 
+Nodes should only interpret a command whose node identifier byte matches their stored identifier. The implemented commands are as follows:
+
+NODE_OFF = 0
+Turn the light attached to a node off.
+
+NODE_ON = 1
+Turn the light attached to a node on.
+
+NODE_SAVE_ID = 2
+Set the stored identifier of a node to the data byte.
+
+NODE_KEEP_ALIVE = 3
+Ping message sent to ensure transport liveness.
+
+NODE_STATUS = 4
+Send the status of a node to the server in the data byte, using 0 for off and 1 for on.
+
+In packets for which the command byte does not specify a command which uses the data byte, the value in the data byte is unspecified and should be ignored.
