@@ -55,7 +55,14 @@ typedef struct __node_packet {
 } node_packet;
 //////////////////////////////////////////////////////////////////////////
 
-#define MAX_SERVER_CONNECTIONS MAX_SOCK_NUM
+/*------------------------------------------------------------
+Ethernet Shield can sustain 4 (MAX_SOCK_NUM) open sockets at any
+given time. 1 should be reserved for webServer, 1 for the UDP
+broadasts. Close the UDP when 2 devices are connected in order
+to allow the webpage to use another socket. Reopen when a socket
+is released by the nodes.
+------------------------------------------------------------*/
+#define MAX_SERVER_CONNECTIONS 2
 
 /*------------------------------------------------------------------------
 VARIABLES
@@ -200,9 +207,13 @@ void loop() {
   // broadcast IP address if room for more nodes
   if( connected_node_cnt < MAX_SERVER_CONNECTIONS ) {
     // Broadcast IP address
+    UDP.begin(localPort);
     UDP.beginPacket( udp_ip, localPort );
     UDP.write( IP_addr, 4 );
     UDP.endPacket();
+  } else {
+    //Serial.println( F("Closing UDP resources...") );
+    UDP.stop();
   }
 
   // wait for a new client:
