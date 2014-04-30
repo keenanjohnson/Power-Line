@@ -33,7 +33,7 @@ typedef byte node_cmds; enum {
   NODE_KEEP_ALIVE,
   NODE_STATUS,
   // add new cmds here
-  
+
   NODE_CMDS_CNT
 };
 
@@ -97,23 +97,23 @@ SETUP
 void setup() {
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
-  
+
   // setup pins
   pinMode(NODE_RELAY_PIN, OUTPUT);
-  
+
   // start the Ethernet connection:
   while(Ethernet.begin(mac) == 0) {
     Serial.println("Failed to configure Ethernet using DHCP");
     // Wait a bit and try again
     delay(100);
   }
-  
+
   // Start listening on UDP port
   UDP.begin(localPort);
 
   // print local IP address
   print_local_ip_address();
-  
+
   // disconnect init
   keep_alive_rec = false;
   keep_alive_sent = false;
@@ -147,21 +147,21 @@ void loop() {
     UDP.read(packetBuffer,UDP_TX_PACKET_MAX_SIZE);
     Serial.println("Contents:");
     Serial.println(packetBuffer);
-    
+
     IP_found = true;
 
     while( !client.connect( UDP.remoteIP(), 11700) ) {
       Serial.println("Client cannot connect...");
       delay(100);
     }
-    
+
     while( !client.connected() ) {
       Serial.println("Waiting to connect...");
     }
-    
+
     // bring up connection with KEEP_ALIVE cmd
     send_cmd_to_server( NODE_KEEP_ALIVE, digitalRead( NODE_RELAY_PIN ), &client );
-    
+
     Serial.println("CONN BROUGHT UP");
   }
 
@@ -227,7 +227,7 @@ void print_local_ip_address()
 void process_cmd_packet( const node_packet &pkt )
 {
   loop_time = millis();
-  
+
   switch( pkt.cmd ) {
     case NODE_OFF:
       digitalWrite(NODE_RELAY_PIN, LOW);
@@ -257,11 +257,11 @@ void process_cmd_packet( const node_packet &pkt )
 int send_cmd_to_server( const node_cmds &cmd, const byte &data, EthernetClient* client )
 {
   node_packet packet;
-  
+
   packet.id = node_id;
   packet.cmd = cmd;
   packet.data = data;
-  
+
   if( cmd == NODE_KEEP_ALIVE ) {
     keep_alive_rec = false;
     keep_alive_sent = true;

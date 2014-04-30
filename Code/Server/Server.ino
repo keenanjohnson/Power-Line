@@ -34,7 +34,7 @@ typedef byte node_cmds; enum {
   NODE_KEEP_ALIVE,
   NODE_STATUS,
   // add new cmds here
-  
+
   NODE_CMDS_CNT
 };
 
@@ -181,7 +181,7 @@ void setup() {
     node_connected[i] = false;
   }
   connected_node_cnt = 0;
-  
+
   Serial.println(F("Setup finished"));
 }
 
@@ -189,21 +189,21 @@ void setup() {
 LOOP
 ------------------------------------------------------------------------*/
 void loop() {
-  
+
   ////////////////////////
   // Web Server
   /////////////////////////
-  
+
   char buff[64];
   int len = 64;
 
   /* process incoming connections one at a time forever */
   webserver.processConnection(buff, &len);
-  
+
   ////////////////////////
   // Powerline Network
   ////////////////////////
-  
+
   // broadcast IP address if room for more nodes
   if( connected_node_cnt < MAX_SERVER_CONNECTIONS ) {
     // Broadcast IP address
@@ -222,7 +222,7 @@ void loop() {
   if( client ) {
     boolean alreadyConnected = false;
     int id = 0xFF;
-    
+
     // determine where to add client in old_client[]
     for( int i = 0; i < MAX_SERVER_CONNECTIONS; i++ ) {
       if( node_connected[i] && old_client[i] && client_equal( client, old_client[i] ) ) {
@@ -237,7 +237,7 @@ void loop() {
     if (!alreadyConnected) {
       Serial.print( F("SERVER: id = ") );
       Serial.println( id );
-      
+
       // clead out the input buffer:
       client.flush();
       Serial.println("We have a new client");
@@ -285,7 +285,7 @@ void loop() {
         Serial.println(F(" disconnecting node..."));
         old_client[i].flush();
         old_client[i].stop();
-        
+
         node_connected[i] = false;
         connected_node_cnt--;
       }
@@ -303,10 +303,10 @@ boolean client_equal( EthernetClient &clienta, EthernetClient &clientb )
 { 
   byte testa[] = { 0, 0, 0, 0 };
   byte testb[] = { 0, 0, 0, 0 };
-  
+
   clienta.getRemoteIP(testa);
   clientb.getRemoteIP(testb);
-  
+
   for( int i = 0; i < sizeof( testa ); i++ ) {
     if( testa[i] != testb[i] ) {
       return false;
@@ -376,7 +376,7 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
   packet.id = id;
   packet.cmd = cmd;
   packet.data = data;
-  
+
   if( !(*client) ) {
     Serial.println( F("send_cmd_to_client to NULL") );
     return 0;
@@ -399,7 +399,7 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
 void web_response(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete)
 {
   Serial.println(F("Processing web response..."));
-  
+
   // ////////////////////////////////////
   // Handling POST requests from website
   ///////////////////////////////////////
@@ -431,21 +431,20 @@ void web_response(WebServer &server, WebServer::ConnectionType type, char *url_t
 
     return;
   }
-  
-  
+
   // ////////////////////////////////////
   // Handling GET for website page sending
   ///////////////////////////////////////
    /* for a GET or HEAD, send the standard "it's all OK headers" */
   server.httpSuccess();
-  
+
   if (type == WebServer::GET)
   {
     Serial.println(url_tail);
     URLPARAM_RESULT rc;
     char name[32];
     char value[32];
-    
+
     // Write HTML file out to client
     webFile = SD.open("index.htm");        // open web page file
     if (webFile) {
@@ -463,7 +462,7 @@ void update_status(WebServer &server, WebServer::ConnectionType type, char *url_
   // Grabbing status from node's keep_alive msg to avoid traffic
   //send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &(old_client[0x01]) );
   Serial.println(F("Updating status to HTTP connection..."));
-  
+
   server.print("<?xml version = \"1.0\" ?>");
   server.print("<inputs>");
   // light count
