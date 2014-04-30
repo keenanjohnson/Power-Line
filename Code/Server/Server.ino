@@ -387,6 +387,7 @@ int send_cmd_to_client( const int &id, const node_cmds &cmd, const byte &data, E
  * server to send data back to the web browser. */
 void web_response(WebServer &server, WebServer::ConnectionType type, char *url_tail, bool tail_complete)
 {
+  Serial.println(F("Processing web response..."));
   
   // ////////////////////////////////////
   // Handling POST requests from website
@@ -395,31 +396,28 @@ void web_response(WebServer &server, WebServer::ConnectionType type, char *url_t
   {
     Serial.println("Post received");
     bool repeat;
+    int id;
     char name[16], value[16];
-    
+
     /* readPOSTparam returns false when there are no more parameters
      * to read from the input.  We pass in buffers for it to store
      * the name and value strings along with the length of those
      * buffers. */
     repeat = server.readPOSTparam(name, 16, value, 16);
-    
-    // Light ON
-    if ( strcmp(name, "ButtonOn") == 0)
-    {
-        // Turn light on
-        Serial.println("Light on Command");
-        send_cmd_to_client( 0x01, NODE_ON, 0x00, &(old_client[0x01]) );
-        node_status[0x01] = true;
+
+    id = atoi( name ); id--;
+    if( node_status[id] ) {
+      Serial.print("Sending off to ");
+      Serial.println(id);
+      send_cmd_to_client( id, NODE_OFF, 0x00, &(old_client[id]) );
+      node_status[id] = false;
+    } else {
+      Serial.print("Sending on to ");
+      Serial.println(id);
+      send_cmd_to_client( id, NODE_ON, 0x00, &(old_client[id]) );
+      node_status[id] = true;
     }
-    //Light off
-    if ( strcmp(name, "ButtonOff") == 0)
-    {
-        // Turn light off
-        Serial.println("Light off Command");
-        send_cmd_to_client( 0x01, NODE_OFF, 0x00, &(old_client[0x01]) );
-        node_status[0x01] = false;
-    }
-    
+
     return;
   }
   
@@ -453,22 +451,28 @@ void update_status(WebServer &server, WebServer::ConnectionType type, char *url_
 {
   // Grabbing status from node's keep_alive msg to avoid traffic
   //send_cmd_to_client( 0x01, NODE_STATUS, 0x00, &(old_client[0x01]) );
+  Serial.println(F("Updating status to HTTP connection..."));
   
   server.print("<?xml version = \"1.0\" ?>");
   server.print("<inputs>");
   // light count
   server.print("<count>");
-  server.print(1);
+  server.print(connected_node_cnt);
   server.print("</count>");
-  // button 1, pin 7
-  server.print("<light1>");
-  if( node_status[0x01] ) {
-      server.print("ON");
+
+  for( int i = 0; i < MAX_SERVER_CONNECTIONS; i++ ) {
+    if( node_connected[i] ) {
+      server.print("<light"); server.print(i + 1); server.print(">");
+      if( node_status[i] ) {
+          server.print("ON");
+      }
+      else {
+          server.print("OFF");
+      }
+      server.print("</light"); server.print(i + 1); server.print(">");
+    }
   }
-  else {
-      server.print("OFF");
-  }
-  server.print("</light1>");
+
   server.print("</inputs>");
 }
 
