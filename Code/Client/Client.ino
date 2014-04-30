@@ -54,14 +54,14 @@ typedef struct __node_packet {
 } node_packet;
 //////////////////////////////////////////////////////////////////////////
 
-#define NODE_RELAY_PIN   5
+#define NODE_RELAY_PIN   2
 
 /*------------------------------------------------------------------------
 VARIABLES
 ------------------------------------------------------------------------*/
 // Enter a MAC address for your controller below.
 // Newer Ethernet shields have a MAC address printed on a sticker on the shield
-byte mac[] = { 0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x10 };
+byte mac[] = { 0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x25 };
 
 // Initialize the Ethernet client library
 // with the IP address and port of the server
