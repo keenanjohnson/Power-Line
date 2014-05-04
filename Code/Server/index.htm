@@ -1,6 +1,52 @@
 <!DOCTYPE html>
 <html>
     <head>
+        <style>
+            *
+            {
+                margin: 0;
+                font-family: Droid Sans;
+                text-align: center;
+            }
+            h1 {
+                padding: .2em 0em .2em 0em;
+                color: #222;
+                width: 100%;
+                font-size: 30pt;
+                background: -moz-linear-gradient(top, #eff 0%, #cee 33%, #7ac 98%, #fff 100%); /* FF3.6+ */
+                background: -webkit-linear-gradient(top, #eff 0%, #cee 33%, #7ac 98%, #fff 100%); /* Chrome10+,Safari5.1+ */
+                background: linear-gradient(to bottom, #eff 0%, #cee 33%, #7ac 98%, #fff 100%); /* W3C */
+            }
+            body {
+                font-size: 14pt;
+            }
+            p {
+                margin: 4% 5%;
+                color: #666;
+            }
+            button {
+                outline: none;
+                border: 1px solid #eee;
+                border-radius: .5em;
+                font-size: 14pt;
+                color: white;
+                padding: 2%;
+                margin-right: 2%;
+                -webkit-box-shadow: 1px 1px 3px 0px #999;
+            }
+            .on {
+                background: -webkit-linear-gradient(top, #7f6 0%, #0f0 50%, #0a3 100%);
+            }
+            .on:active {
+                background: -webkit-linear-gradient(top, #6d5 0%, #0d0 50%, #093 100%);
+            }
+            .off {
+                background: -webkit-linear-gradient(top, #f11 0%,#f00 50%, #800 100%);
+            }
+            .off:active {
+                background: -webkit-linear-gradient(top, #d11 0%, #d00 50%, #610 100%);
+            }
+        </style>
         <title>Open Home Automation</title>
         <script>
         function GetArduinoInputs()
@@ -12,59 +58,54 @@
                     if (this.status == 200) {
                         if (this.responseXML != null) {
                             // extract XML data from XML file (containing light states)
-							var count_var = this.responseXML.getElementsByTagName('count')[0].childNodes[0].nodeValue;
-							
+                            var count_var = this.responseXML.getElementsByTagName('count')[0].childNodes[0].nodeValue;
+                            
                             // Get main body of HTML document
                             document.getElementById("input_app").innerHTML = "";
 
                             var input_section = document.getElementById("input_app");
-							
+                            
                             var node_count = 0;
 
                             // Loop for each light reported by base station
-							for( var i = 1; i <= 5; i++ ) {
+                            for( var i = 1; i <= 5; i++ ) {
                                 if(this.responseXML.getElementsByTagName("light" + i).length > 0)
                                 {
-									node_count++;
-									
-	                                // Create new device element
-									var element = document.createElement("BUTTON");
+                                    node_count++;
+                                    
+                                    // Create new device element
+                                    var element = document.createElement("BUTTON");
 
-                                    // Change button style
-                                    element.style.width = "200px";
-                                    element.style.height = "100px";
-                                    element.style.fontSize = "large";
+                                    //Add label to button
+                                    var label = "Light" + i;
+                                    var but_label = document.createTextNode(label);
+                                    element.id = label;
+                                    element.appendChild(but_label);
 
-	                                //Add label to button
-	                                var label = "Light" + i;
-	                                var but_label = document.createTextNode(label);
-	                                element.id = label;
-	                                element.appendChild(but_label);
+                                    // Set state of light
+                                    if(this.responseXML.getElementsByTagName("light" + i)[0].childNodes[0].nodeValue  == "ON")
+                                    {
+                                        // Set button to on style
+                                        element.setAttribute("class", "on");
+                                    }
+                                    else
+                                    {
+                                        // Set button to off style
+                                        element.setAttribute("class", "off");
+                                    }
+
+                                    // Add click callback funtion
+                                    element.onclick = buttonClick;
+
+                                    //Append the element in page (in span).
+                                    input_section.appendChild(element);
+                                }
                                 
-	                                // Set state of light
-	                                if(this.responseXML.getElementsByTagName("light" + i)[0].childNodes[0].nodeValue  == "ON")
-	                                {
-	                                    // Set button to green
-	                                    element.style.backgroundColor = "#00FF00";
-	                                }
-	                                else
-	                                {
-	                                    // Set button to red
-	                                    element.style.backgroundColor = "#FF0000";
-	                                }
-
-	                                // Add click callback funtion
-	                                element.onclick = buttonClick;
-
-								    //Append the element in page (in span).
-								    input_section.appendChild(element);
-								}
-								
                                 if(node_count==count_var)
                                 {
                                     break;
                                 }
-							}
+                            }
                         }
                     }
                 }
@@ -96,7 +137,8 @@
     
     </head>
     <body onload="GetArduinoInputs()">
-        <h1>Unified &amp Open Home Automation</h1>
-		<p><span id="input_app">Updating...</span></p>
+        <h1>Device Control Center</h1>
+        <p><span id="input_app">Updating...</span></p>
+        <p><button class="on">Light 1</button><button class="off">Light 2</button></p>
     </body>
 </html>
