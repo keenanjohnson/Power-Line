@@ -30,6 +30,11 @@
 	                                // Create new device element
 									var element = document.createElement("BUTTON");
 
+                                    // Change button style
+                                    element.style.width = "200px";
+                                    element.style.height = "100px";
+                                    element.style.fontSize = "large";
+
 	                                //Add label to button
 	                                var label = "Light" + i;
 	                                var but_label = document.createTextNode(label);
@@ -88,6 +93,7 @@
         }
 
     </script>
+    
     </head>
     <body onload="GetArduinoInputs()">
         <h1>Unified &amp Open Home Automation</h1>
