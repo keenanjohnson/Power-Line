@@ -18,36 +18,47 @@
                             document.getElementById("input_app").innerHTML = "";
 
                             var input_section = document.getElementById("input_app");
+							
+                            var node_count = 0;
 
                             // Loop for each light reported by base station
-							for( var i = 1; i <= count_var; i++ ) {
-                                // Create new device element
-								var element = document.createElement("BUTTON");
+							for( var i = 1; i <= 5; i++ ) {
+                                if(this.responseXML.getElementsByTagName("light" + i).length > 0)
+                                {
+									node_count++;
+									
+	                                // Create new device element
+									var element = document.createElement("BUTTON");
 
-                                //Add label to button
-                                var label = "Light" + i;
-                                var but_label = document.createTextNode(label);
-                                element.id = label;
-                                element.appendChild(but_label);
+	                                //Add label to button
+	                                var label = "Light" + i;
+	                                var but_label = document.createTextNode(label);
+	                                element.id = label;
+	                                element.appendChild(but_label);
                                 
-                                // Set state of light
-                                if(this.responseXML.getElementsByTagName("light" + i)[0].childNodes[0].nodeValue  == "ON")
+	                                // Set state of light
+	                                if(this.responseXML.getElementsByTagName("light" + i)[0].childNodes[0].nodeValue  == "ON")
+	                                {
+	                                    // Set button to green
+	                                    element.style.backgroundColor = "#00FF00";
+	                                }
+	                                else
+	                                {
+	                                    // Set button to red
+	                                    element.style.backgroundColor = "#FF0000";
+	                                }
+
+	                                // Add click callback funtion
+	                                element.onclick = buttonClick;
+
+								    //Append the element in page (in span).
+								    input_section.appendChild(element);
+								}
+								
+                                if(node_count==count_var)
                                 {
-                                    // Set button to green
-                                    element.style.backgroundColor = "#00FF00";
+                                    break;
                                 }
-                                else
-                                {
-                                    // Set button to red
-                                    element.style.backgroundColor = "#FF0000";
-                                }
-
-                                // Add click callback funtion
-                                element.onclick = buttonClick;
-
-							    //Append the element in page (in span).
-							    input_section.appendChild(element);
-
 							}
                         }
                     }
