@@ -81,7 +81,7 @@
                                     var but_label = document.createTextNode(label);
                                     element.id = label;
                                     element.appendChild(but_label);
-
+                                
                                     // Set state of light
                                     if(this.responseXML.getElementsByTagName("light" + i)[0].childNodes[0].nodeValue  == "ON")
                                     {
@@ -134,11 +134,9 @@
         }
 
     </script>
-    
     </head>
     <body onload="GetArduinoInputs()">
         <h1>Device Control Center</h1>
         <p><span id="input_app">Updating...</span></p>
-        <p><button class="on">Light 1</button><button class="off">Light 2</button></p>
     </body>
 </html>
