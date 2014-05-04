@@ -125,12 +125,12 @@
         {
             // New HTTP Post
             var request = new XMLHttpRequest();
--           request.open("POST", "", true);
+            request.open("POST", "", true);
 
             // Post contains the Id number of the light
             // .slice(-1) retuns last character of the light 
             // ID string
--           request.send(this.id.slice(-1));
+            request.send(this.id.slice(-1));
         }
 
     </script>
