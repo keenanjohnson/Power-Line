@@ -13000,11 +13000,6 @@ Source: http://www.vishay.com/docs/10129/hpc0201a.pdf</description>
 <text x="-0.785" y="-1.865" size="1.27" layer="27">&gt;VALUE</text>
 <rectangle x1="-0.305" y1="-0.15" x2="0.305" y2="0.15" layer="51"/>
 </package>
-<package name="FIDUCIA-MOUNT">
-<circle x="0" y="0" radius="0.5" width="2.1844" layer="29"/>
-<circle x="0" y="0" radius="1.5" width="0.127" layer="41"/>
-<smd name="P$1" x="0" y="0" dx="1.016" dy="1.016" layer="1" roundness="100"/>
-</package>
 <package name="0204V">
 <description>&lt;b&gt;RESISTOR&lt;/b&gt;&lt;p&gt;
 type 0204, grid 2.5 mm</description>
@@ -13659,9 +13654,6 @@ chip</description>
 </package>
 </packages>
 <symbols>
-<symbol name="FIDUCIAL">
-<circle x="0" y="0" radius="2.54" width="0.254" layer="94"/>
-</symbol>
 <symbol name="R-EU">
 <wire x1="-2.54" y1="-0.889" x2="2.54" y2="-0.889" width="0.254" layer="94"/>
 <wire x1="2.54" y1="0.889" x2="-2.54" y2="0.889" width="0.254" layer="94"/>
@@ -13830,18 +13822,6 @@ chip</description>
 </symbol>
 </symbols>
 <devicesets>
-<deviceset name="FIDUCIALMOUNT">
-<gates>
-<gate name="G$1" symbol="FIDUCIAL" x="0" y="0"/>
-</gates>
-<devices>
-<device name="" package="FIDUCIA-MOUNT">
-<technologies>
-<technology name=""/>
-</technologies>
-</device>
-</devices>
-</deviceset>
 <deviceset name="C-EU" prefix="C" uservalue="yes">
 <description>&lt;B&gt;CAPACITOR&lt;/B&gt;, European symbol</description>
 <gates>
@@ -24871,9 +24851,6 @@ type 0309, grid 2.5 mm</description>
 <part name="P+5" library="supply1" deviceset="+5V" device=""/>
 <part name="D1" library="diode" deviceset="DIODE-" device="SMB" value="M7"/>
 <part name="X1" library="SmartPrj" deviceset="POWERSUPPLY_DC21MM" device="X"/>
-<part name="FD1" library="SmartPrj" deviceset="FIDUCIALMOUNT" device=""/>
-<part name="FD2" library="SmartPrj" deviceset="FIDUCIALMOUNT" device=""/>
-<part name="FD3" library="SmartPrj" deviceset="FIDUCIALMOUNT" device=""/>
 <part name="GND11" library="supply1" deviceset="GND" device=""/>
 <part name="U1" library="linear" deviceset="MC33269ST*" device="" technology="-3.3T3" value="NCP1117ST50T3G"/>
 <part name="C4" library="SmartPrj" deviceset="C-EU" device="0603-RND" value="100n"/>
@@ -24896,7 +24873,6 @@ type 0309, grid 2.5 mm</description>
 <part name="RN1" library="resistor-dil" deviceset="4R-N" device="CAY16" value="10K"/>
 <part name="C6" library="SmartPrj" deviceset="C-EU" device="0603-RND" value="100n"/>
 <part name="RN4" library="resistor-dil" deviceset="4R-N" device="CAY16" value="1K"/>
-<part name="RN3" library="resistor-dil" deviceset="4R-N" device="CAY16" value="22R"/>
 <part name="C3" library="SmartPrj" deviceset="C-EU" device="0603-RND" value="1u"/>
 <part name="GND15" library="supply1" deviceset="GND" device=""/>
 <part name="U5" library="linear" deviceset="LMV358?*" device="MM" technology="X" value="LMV358IDGKR"/>
@@ -24992,9 +24968,6 @@ type 0309, grid 2.5 mm</description>
 <attribute name="NAME" x="116.84" y="185.42" size="1.27" layer="94"/>
 <attribute name="VALUE" x="116.84" y="182.88" size="1.27" layer="94"/>
 </instance>
-<instance part="FD1" gate="G$1" x="167.64" y="134.62"/>
-<instance part="FD2" gate="G$1" x="167.64" y="129.54"/>
-<instance part="FD3" gate="G$1" x="167.64" y="124.46"/>
 <instance part="GND11" gate="1" x="180.34" y="157.48"/>
 <instance part="U1" gate="G$1" x="180.34" y="172.72" smashed="yes">
 <attribute name="NAME" x="175.26" y="182.88" size="1.778" layer="95"/>
@@ -25042,8 +25015,6 @@ type 0309, grid 2.5 mm</description>
 </instance>
 <instance part="RN4" gate="C" x="195.58" y="134.62"/>
 <instance part="RN4" gate="D" x="195.58" y="139.7"/>
-<instance part="RN3" gate="B" x="233.68" y="-33.02"/>
-<instance part="RN3" gate="C" x="233.68" y="-40.64"/>
 <instance part="C3" gate="G$1" x="111.76" y="139.7" smashed="yes" rot="MR180">
 <attribute name="NAME" x="117.983" y="141.605" size="1.778" layer="95" rot="MR0"/>
 <attribute name="VALUE" x="119.634" y="139.065" size="1.778" layer="96" rot="MR0"/>
@@ -25304,6 +25275,10 @@ type 0309, grid 2.5 mm</description>
 <pinref part="GND12" gate="1" pin="GND"/>
 <pinref part="RESET" gate="G$1" pin="2"/>
 <pinref part="RESET" gate="G$1" pin="1"/>
+<pinref part="RESET" gate="G$1" pin="5-GND"/>
+<wire x1="129.54" y1="111.76" x2="127" y2="111.76" width="0.1524" layer="91"/>
+<wire x1="127" y1="111.76" x2="127" y2="109.22" width="0.1524" layer="91"/>
+<junction x="129.54" y="111.76"/>
 </segment>
 <segment>
 <wire x1="180.34" y1="160.02" x2="180.34" y2="167.64" width="0.1524" layer="91"/>
