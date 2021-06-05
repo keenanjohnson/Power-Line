@@ -1,4 +1,4 @@
-#Senior_Design#
+
 
 ###Current design###
 4 "devices", communication is from top to bottom and vice versa:
